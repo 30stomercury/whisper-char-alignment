@@ -4,7 +4,7 @@ What we have done:
 - Extracting character-level attention maps is possible.
 
 Todos:
-- [ ] Compared to mean-pooling over all attention maps (baseline), how good is the one pooled over the selected attention maps with coverage penalty?
+- [ ] Compared to mean-pooling over all attention maps (baseline), pool over the selected attention maps with coverage penalty. Or we can simply use the best head.
 - [ ] Out of the selected attention maps, can we find the ones closest to word-level alignments?
 - [ ] Are there specific heads, consistently modelling word-level alignmetns? -> check more samples.
 - [ ] Apply coverage penalty to samples in librspeech dev-clean. Plot word-level alignments.
