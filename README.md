@@ -15,5 +15,16 @@ Advanced:
 - [ ] Compute $\sum_{\text{next char}} \arg \max_{x \in A(prefix)} p(\text{next char}| x)$, in which $A$ is the pretrained tokenizer. 
 
 
+---
+Baselines:
+
+WhisperX, averaged-pooling, selected-pooling on
+- [ ] TIMIT word-level alignments
+- [ ] dev-clean word-level alignments
+
+Character-level alignments
+- [ ] Char-based whisper WERs
+
+
 Ref: \
 https://www.isca-archive.org/interspeech_2024/rousso24_interspeech.pdf
