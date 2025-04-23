@@ -12,4 +12,8 @@ Todos:
 - [ ] Compute character-level inference WERs by simply blocking tokens other than characters.
 
 Advanced:
-- [ ] Compute $\arg \max_{x \in A(prefix)} p(\text{next char}| x)$, in which $A$ is the pretrained tokenizer. 
+- [ ] Compute $\sum_{\text{next char}} \arg \max_{x \in A(prefix)} p(\text{next char}| x)$, in which $A$ is the pretrained tokenizer. 
+
+
+Ref: \
+https://www.isca-archive.org/interspeech_2024/rousso24_interspeech.pdf
