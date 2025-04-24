@@ -26,5 +26,6 @@ Character-level alignments
 - [ ] Char-based whisper WERs
 
 
-Ref: \
-https://www.isca-archive.org/interspeech_2024/rousso24_interspeech.pdf
+Ref: 
+- https://www.isca-archive.org/interspeech_2024/rousso24_interspeech.pdf
+- [LibriSpeech alignments](https://zenodo.org/records/2619474#.YnB_1fPMK3I)
