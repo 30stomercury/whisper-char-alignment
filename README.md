@@ -32,3 +32,7 @@ Ref:
 Alignments:
 - [LibriSpeech alignments](https://zenodo.org/records/2619474#.YnB_1fPMK3I) (TextGrid)
 - [processed LibriSpeech alignments](https://drive.google.com/drive/folders/10Qa8dedfFhVl-3NuxMQMUUOwo9Rwn33o?usp=sharing) (merge TextGrid to single txt file)
+
+
+Results:
+- https://docs.google.com/spreadsheets/d/1kl7ZgPFvuXrfS4rinyrScX6EFLR03-H0eWfIwQ_stOg/edit?usp=sharing
