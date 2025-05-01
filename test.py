@@ -78,13 +78,22 @@ def get_attentions(mel, tokens, model, tokenizer, medfilt_width=7, qk_scale=1.0)
     # NOTE: make sure MultiHeadAttention.use_sdpa = False
     QKs = [None] * model.dims.n_text_layer
 
-    for i, block in enumerate(model.decoder.blocks):
+    #for i, block in enumerate(model.decoder.blocks):
+    #    block.cross_attn.register_forward_hook(
+    #        lambda _, ins, outs, index=i: QKs.__setitem__(index, outs[-1])
+    #    )
+    hooks = [
         block.cross_attn.register_forward_hook(
             lambda _, ins, outs, index=i: QKs.__setitem__(index, outs[-1])
         )
+        for i, block in enumerate(model.decoder.blocks)
+    ]
 
     with torch.no_grad():
         logits = model(mel.unsqueeze(0), tokens.unsqueeze(0))[0]
+
+    for hook in hooks:
+        hook.remove()
 
     weights = torch.cat(QKs)  # layers * heads * tokens * frames    
     weights = weights.cpu()
@@ -107,6 +116,8 @@ def force_align(
     w : torch.tensor in (layers, heads, tokens, frames)
     tokens : tokens of texts, without bot, eot
     """
+    w = w[..., :max_frames]
+    wrd_pos = [int(i/0.02) for i in wrd_pos]
     if aggregation == "mean":
         # whisper implementation:
         matrix = w.mean(axis=(0, 1))
@@ -117,10 +128,11 @@ def force_align(
         matrix = filter_attention(w, topk=topk, plot=plot, path=path, wrd_pos=wrd_pos)
         matrix = torch.cat(matrix, 0).mean(0)
 
-    matrix = matrix[len(tokenizer.sot_sequence):-1, :max_frames].cpu()
+    matrix = matrix[len(tokenizer.sot_sequence):-1].cpu()
     text_indices, time_indices = dtw(-matrix)
 
-    words, word_tokens = tokenizer.split_to_word_tokens(tokens + [tokenizer.eot])
+    #words, word_tokens = tokenizer.split_to_word_tokens(tokens + [tokenizer.eot])
+    words, word_tokens = split_chars_on_spaces(tokens + [tokenizer.eot], tokenizer)
     if len(word_tokens) <= 1:
         # return on eot only
         # >>> np.pad([], (1, 0))
@@ -188,6 +200,36 @@ class Collate:
         mel, duration, text, starts, ends, fid = one_batch
         return  mel[0], duration[0], text[0], starts[0], ends[0], fid[0]
 
+def char_tokenizer_encode(text, tokenizer):
+    tokens = []
+    space_id = tokenizer.encode(' ')
+    wrds = text.split()
+    for i in range(len(wrds)):
+        #tokens += tokenizer.encode(' '.join([char for char in wrds[i]]))
+        for c in wrds[i]:
+            tokens += tokenizer.encode(c)
+        if i < len(wrds) - 1:
+            tokens += space_id
+    return tokens
+
+def split_chars_on_spaces(tokens, tokenizer):
+    subwords, subword_tokens_list = tokenizer.split_tokens_on_unicode(tokens)
+    words = []
+    word_tokens = []
+
+    for subword, subword_tokens in zip(subwords, subword_tokens_list):
+        special = subword_tokens[0] >= tokenizer.eot
+        with_space = subword == " "
+        punctuation = subword.strip() in string.punctuation
+        if special or with_space or punctuation or len(words) == 0:
+            words.append(subword)
+            word_tokens.append(subword_tokens)
+        else:
+            words[-1] = words[-1] + subword
+            word_tokens[-1].extend(subword_tokens)
+
+    return words, word_tokens
+
 def infer_dataset(model, tokenizer, scp_file="scp/test.wav.scp", tolerance=0.02):
     dataset = TIMIT(scp_file, n_mels=80, device=model.device)
     loader = torch.utils.data.DataLoader(dataset, collate_fn=Collate(), batch_size=1)
@@ -200,11 +242,14 @@ def infer_dataset(model, tokenizer, scp_file="scp/test.wav.scp", tolerance=0.02)
     total_gts = 0
     for n, (mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
         # print the recognized text
-        result = whisper.decode(model, mels, options)
-        transcription = result.text
+        #result = whisper.decode(model, mels, options)
+        #transcription = result.text
+        transcription = texts
+        transcription = transcription[0].upper() + transcription[1:]
         transcription = transcription.translate(str.maketrans('', '', string.punctuation))
 
-        text_tokens = tokenizer.encode(transcription)
+        text_tokens = char_tokenizer_encode(transcription, tokenizer)
+        #text_tokens = tokenizer.encode(transcription)
         tokens = torch.tensor(
             [
                 *tokenizer.sot_sequence,
@@ -217,10 +262,13 @@ def infer_dataset(model, tokenizer, scp_file="scp/test.wav.scp", tolerance=0.02)
         # Get attention maps
         max_frames = durations // AUDIO_SAMPLES_PER_TOKEN
         w, logits = get_attentions(mels, tokens, model, tokenizer, medfilt_width, qk_scale)
-        results = force_align(w, text_tokens, tokenizer, max_frames, aggregation="topk", topk=50, plot=False, wrd_pos=ends)
+        results = force_align(w, text_tokens, tokenizer, max_frames, aggregation="topk", topk=18, plot=False, wrd_pos=ends)
+        #results = force_align(w, text_tokens, tokenizer, max_frames, aggregation="mean", topk=10, plot=False, wrd_pos=ends)
 
         # predicted boundaries
         ends_hat = results[2]
+        #print(ends)
+        #print(ends_hat)
 
         # eval
         total_gts += len(ends)
