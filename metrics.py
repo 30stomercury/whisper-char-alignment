@@ -108,3 +108,18 @@ def count_transitions(x):
             count += 1
 
     return count, positions
+
+def coverage_penalty(attn, threshold=0.5):
+    """
+    attn : torch.tensor in (tokens, frames)
+    """
+
+    coverage = torch.sum(attn, dim=0)
+
+    # Compute coverage penalty
+    penalty = torch.max(
+        coverage, coverage.clone().fill_(threshold)
+    ).sum(-1)
+    penalty = penalty - coverage.size(-1) * threshold
+    return penalty
+
