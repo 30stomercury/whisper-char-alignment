@@ -79,12 +79,9 @@ class LibriSpeech(torch.utils.data.Dataset):
             self.alignment_dict[fname] = eval(line.split(' ', 1)[1])
 
         self.dataset = []
-        filtered = [l.strip() for l in open(f'filtered_utt-{split}.txt', 'r').readlines()]
         print('collecting audio...')
         for file in tqdm(file_list):
             fid = file.split('/')[-1].split('.')[0]
-            if fid in filtered:
-                continue
             audio, sample_rate = torchaudio.load(file)
             audio = audio.squeeze()
             text = self.label_dict[fid]

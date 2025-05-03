@@ -91,7 +91,14 @@ def force_align(
 
     if aggregation == "mean":
         # whisper implementation:
-        matrix = w.mean(axis=(0, 1))
+        L, H = w.size(0), w.size(1)
+        all_heads = torch.zeros(
+            L, H, dtype=torch.bool
+        )
+        all_heads[L // 2 :, :] = True
+        all_heads = all_heads.to_sparse()
+        w = torch.stack([w[_l][_h] for _l, _h in all_heads.indices().T])
+        matrix = w.mean(axis=0)
 
     elif aggregation == "topk":
         wrd_pos = [int(i/0.02) for i in wrd_pos]
@@ -103,9 +110,8 @@ def force_align(
     matrix = matrix[len(tokenizer.sot_sequence):-1].cpu()
     text_indices, time_indices = dtw(-matrix)
 
-    #words, word_tokens = tokenizer.split_to_word_tokens(tokens + [tokenizer.eot])
+    # words, word_tokens = tokenizer.split_to_word_tokens(tokens + [tokenizer.eot])
     words, word_tokens = split_chars_on_spaces(tokens + [tokenizer.eot], tokenizer, hypothesis=text, sep_space=sep_space)
-    print(words, word_tokens)
     if len(word_tokens) <= 1:
         # return on eot only
         # >>> np.pad([], (1, 0))

@@ -14,6 +14,9 @@ from whisper.audio import HOP_LENGTH, SAMPLE_RATE, TOKENS_PER_SECOND
 DEVICE = f'cuda:0' if torch.cuda.is_available() else 'cpu'
 print(DEVICE)
 
+MAX_FRAMES = 1500
+MAX_LENGTH = 448
+
 def infer_dataset(model, tokenizer, split='dev-clean', tolerance=0.02):
     # basically parameters to do denoising
     medfilt_width = 7
@@ -27,7 +30,13 @@ def infer_dataset(model, tokenizer, split='dev-clean', tolerance=0.02):
     corrects = 0
     total_preds = 0
     total_gts = 0
-    sep_space=False
+
+    # config
+    # having separate space or not
+    sep_space = True
+    agg_type = 'topk'
+    k = 10
+
     for n, (mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
         mels = mels.to(DEVICE)
         # print the recognized text
@@ -37,6 +46,7 @@ def infer_dataset(model, tokenizer, split='dev-clean', tolerance=0.02):
         transcription = transcription[0].upper() + transcription[1:]
         transcription = remove_punctuation(transcription)
 
+        # for librispeech we have to get hypothesis first
         with torch.no_grad():
             results = model.decode(mels.unsqueeze(0), options)
         hypothesis = normalizer(results[0].text)
@@ -53,10 +63,14 @@ def infer_dataset(model, tokenizer, split='dev-clean', tolerance=0.02):
 
         # Get attention maps
         max_frames = durations // AUDIO_SAMPLES_PER_TOKEN
+        # temp hard code, skip too long utterances (> max_token_lenght or > 30s)
+        if max_frames > MAX_FRAMES or len(tokens) > MAX_LENGTH:
+            print(fids)
+            continue
         w, logits = get_attentions(mels, tokens, model, tokenizer, max_frames, medfilt_width, qk_scale)
 
         results = force_align(w, text_tokens, hypothesis, tokenizer,
-                aggregation="topk", topk=10, plot=False, wrd_pos=ends, sep_space=sep_space)
+                aggregation=agg_type, topk=k, plot=False, wrd_pos=ends, sep_space=sep_space)
 
         # predicted boundaries
         ends_hat = results[2]
@@ -66,9 +80,6 @@ def infer_dataset(model, tokenizer, split='dev-clean', tolerance=0.02):
         total_preds += len(ends_hat)
         correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
         corrects += correct_pred
-
-        if n == 10:
-            break
 
     precision, recall, f1, r_value, os = \
              get_seg_metrics(corrects, corrects, total_preds, total_gts)
