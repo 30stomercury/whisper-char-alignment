@@ -92,8 +92,8 @@ def get_seg_metrics(correct_predict, correct_retrieve, total_predict, total_gold
     f1 = 2 * (precision * recall) / (precision + recall + EPS)
     
     os = recall / (precision + EPS) - 1
-    r1 = math.sqrt((1 - recall) ** 2 + os ** 2)
-    r2 = (-os + recall - 1) / (math.sqrt(2))
+    r1 = np.sqrt((1 - recall) ** 2 + os ** 2)
+    r2 = (-os + recall - 1) / (np.sqrt(2))
     r_value = 1 - (abs(r1) + abs(r2)) / 2
 
     return precision, recall, f1, r_value, os
@@ -123,3 +123,11 @@ def coverage_penalty(attn, threshold=0.5):
     penalty = penalty - coverage.size(-1) * threshold
     return penalty
 
+def entropy(prob, eps=1e-15):
+    # compute mean entropy
+    prob = prob / torch.sum(prob, dim=-1).unsqueeze(-1)
+    ent = torch.zeros(prob.size(0))
+    logprob = torch.log(prob + eps)
+    ent = torch.sum(-(prob * logprob), dim=-1)
+    ent = torch.mean(ent)
+    return ent

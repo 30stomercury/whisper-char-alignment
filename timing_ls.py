@@ -1,0 +1,122 @@
+import os
+import torch
+import numpy as np
+from metrics import coverage_penalty, entropy
+import matplotlib.pyplot as plt
+# from retokenize import split_chars_on_spaces
+from retokenize_ls import split_chars_on_spaces
+
+import whisper
+from whisper.model import disable_sdpa
+from whisper.timing import median_filter, dtw
+from whisper.audio import HOP_LENGTH, SAMPLE_RATE, TOKENS_PER_SECOND
+
+
+def filter_attention(w, topk=20, plot=False, path="imgs", wrd_pos=None):
+    """
+    w : torch.tensor in (layers, heads, tokens, frames)
+    """
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    # filter with coverage penalty
+    scores = []
+    for l in range(w.size(0)):
+        for n_h in range(w.size(1)):
+            score = coverage_penalty(w[l, n_h])
+            name = f"sample_layer{l}_head{n_h}"
+            scores.append((score, (l, n_h), name))
+    scores_sorted = sorted(scores)[:topk]
+
+    ws = []
+    for score, (l, n_h), name in scores_sorted:
+        name = f"sample_layer{l}_head{n_h}"
+        ws.append(w[l, n_h].unsqueeze(0))
+        if plot:
+            assert wrd_pos is not None
+            plt.vlines(wrd_pos, ymin=-1, ymax=w[l, n_h].size(0), colors="white")
+            plt.imshow(w[l, n_h], aspect="auto")
+            plt.savefig(f"{path}/{name}_{score}.png")
+
+    if plot:
+        ws_ = torch.cat(ws, 0).mean(0)
+        plt.vlines(wrd_pos, ymin=-1, ymax=w[l, n_h].size(0), colors="white")
+        plt.imshow(ws_, aspect="auto")
+        plt.savefig(f"{path}/sample_ave.png")
+    
+    return ws, scores_sorted
+
+def get_attentions(mel, tokens, model, tokenizer, max_frames, medfilt_width=7, qk_scale=1.0):
+    # install hooks on the cross attention layers to retrieve the attention weights
+    # NOTE: make sure MultiHeadAttention.use_sdpa = False
+    QKs = [None] * model.dims.n_text_layer
+
+    hooks = [
+        block.cross_attn.register_forward_hook(
+            lambda _, ins, outs, index=i: QKs.__setitem__(index, outs[-1])
+        )
+        for i, block in enumerate(model.decoder.blocks)
+    ]
+
+    with torch.no_grad(), disable_sdpa():
+        logits = model(mel.unsqueeze(0), tokens.unsqueeze(0))[0]
+
+    for hook in hooks:
+        hook.remove()
+    
+    weights = torch.cat(QKs)  # layers * heads * tokens * frames    
+    weights = weights[..., :max_frames]
+    weights = median_filter(weights, medfilt_width)
+    weights = (weights * qk_scale).softmax(dim=-1)
+    #std, mean = torch.std_mean(weights, dim=-2, keepdim=True, unbiased=False)
+    #weights_normed = (weights - mean) / std
+    weights = weights / weights.norm(dim=-2, keepdim=True)
+    return weights, logits
+
+def force_align(
+        w, tokens, 
+        text,
+        tokenizer, 
+        aggregation="mean", 
+        topk=-1, 
+        plot=False,
+        path="img_topk", 
+        wrd_pos=None,
+        sep_space=True
+    ):
+    """
+    w : torch.tensor in (layers, heads, tokens, frames)
+    tokens : tokens of texts, without bot, eot
+    """
+
+    if aggregation == "mean":
+        # whisper implementation:
+        matrix = w.mean(axis=(0, 1))
+
+    elif aggregation == "topk":
+        wrd_pos = [int(i/0.02) for i in wrd_pos]
+        assert topk > 0
+        # select attentions:
+        matrix, scores = filter_attention(w, topk=topk, plot=plot, path=path, wrd_pos=wrd_pos)
+        matrix = torch.cat(matrix, 0).mean(0)
+
+    matrix = matrix[len(tokenizer.sot_sequence):-1].cpu()
+    text_indices, time_indices = dtw(-matrix)
+
+    #words, word_tokens = tokenizer.split_to_word_tokens(tokens + [tokenizer.eot])
+    words, word_tokens = split_chars_on_spaces(tokens + [tokenizer.eot], tokenizer, hypothesis=text, sep_space=sep_space)
+    print(words, word_tokens)
+    if len(word_tokens) <= 1:
+        # return on eot only
+        # >>> np.pad([], (1, 0))
+        # array([0.])
+        # This results in crashes when we lookup jump_times with float, like
+        # IndexError: arrays used as indices must be of integer (or boolean) type
+        return []
+    word_boundaries = np.pad(np.cumsum([len(t) for t in word_tokens[:-1]]), (1, 0))
+
+    jumps = np.pad(np.diff(text_indices), (1, 0), constant_values=1).astype(bool)
+    jump_times = time_indices[jumps] / TOKENS_PER_SECOND
+    start_times = jump_times[word_boundaries[:-1]]
+    end_times = jump_times[word_boundaries[1:]]
+    return words, start_times, end_times

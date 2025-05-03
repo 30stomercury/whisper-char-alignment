@@ -1,6 +1,9 @@
+import os
 import torch
 import torchaudio
 import whisper
+from glob import glob
+from tqdm import tqdm
 
 class TIMIT(torch.utils.data.Dataset):
     def __init__(self, scp_file="scp/test.wav.scp", split="test", n_mels=80, device='cpu:0'):
@@ -52,3 +55,54 @@ class Collate:
         one_batch = list(zip(*batch))
         mel, duration, text, starts, ends, fid = one_batch
         return  mel[0], duration[0], text[0], starts[0], ends[0], fid[0]
+
+
+class LibriSpeech(torch.utils.data.Dataset):
+    """
+    A simple class to wrap LibriSpeech and trim/pad the audio to 30 seconds.
+    It will drop the last few seconds of a very small portion of the utterances.
+    """
+    def __init__(self, split="test-clean", n_mels=80, device='cpu:0'):
+        root = '/disk/scratch/s2522924/LibriSpeech'
+        file_list = sorted(glob(os.path.join(root, split, "**/*.flac"), recursive=True))
+        trans_list = sorted(glob(os.path.join(root, split, "**/*.trans.txt"), recursive=True))
+        self.label_dict = {}
+        for trans in trans_list:
+            lines = open(trans, 'r').readlines()
+            for l in lines:
+                fid, text = l.split(' ', 1)
+                self.label_dict[fid] = text
+        self.alignment_dict = {}
+        raw = open(f'ls_alignment_{split}.txt', 'r').readlines()
+        for line in raw:
+            fname = line.split(' ', 1)[0]
+            self.alignment_dict[fname] = eval(line.split(' ', 1)[1])
+
+        self.dataset = []
+        filtered = [l.strip() for l in open(f'filtered_utt-{split}.txt', 'r').readlines()]
+        print('collecting audio...')
+        for file in tqdm(file_list):
+            fid = file.split('/')[-1].split('.')[0]
+            if fid in filtered:
+                continue
+            audio, sample_rate = torchaudio.load(file)
+            audio = audio.squeeze()
+            text = self.label_dict[fid]
+            ali = self.alignment_dict[fid]
+            self.dataset.append((audio, sample_rate, text, ali, fid))
+        self.n_mels = n_mels
+        self.device = device
+    
+    def __len__(self):
+        return len(self.dataset)
+    
+    def __getitem__(self, item):
+        audio, sample_rate, text, ali, fid = self.dataset[item]
+        assert sample_rate == 16000
+        duration = len(audio.flatten())
+        audio = whisper.pad_or_trim(audio.flatten())
+        mel = whisper.log_mel_spectrogram(audio, self.n_mels)
+        starts = [item[1] for item in ali if item[0] != '']
+        ends = [item[2] for item in ali if item[0] != '']
+
+        return (mel, duration, text, starts, ends, fid)
