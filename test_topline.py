@@ -48,18 +48,33 @@ def infer_dataset(model, tokenizer, scp_file="scp/test-subset.wav.scp", toleranc
         # Get attention maps
         max_frames = durations // AUDIO_SAMPLES_PER_TOKEN
         w, logits = get_attentions(mels, tokens, model, tokenizer, max_frames, medfilt_width, qk_scale)
-        #results = force_align(w, text_tokens, tokenizer, aggregation="topk", topk=15, plot=False, wrd_pos=ends)
 
-        results = force_align(w, text_tokens, tokenizer,
-                aggregation="topk", topk=10, plot=False, wrd_pos=ends)
+        ws, scores = filter_attention(w, topk=30)
+        candidates = []
+        best_score = -1
+        best_ends_hat = None
+        for w, score in zip(ws, scores):
+            results = force_align(w.unsqueeze(0), text_tokens, tokenizer,
+                    aggregation="mean", topk=15, plot=False, wrd_pos=ends)
 
-        # predicted boundaries
-        ends_hat = results[2]
+            # collect predicted boundaries
+            ends_hat = results[2]
+            correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
+            precision, recall, f1, r_value, os = \
+                    get_seg_metrics(correct_pred, correct_pred, len(ends_hat), len(ends))
+            print(score, f1)
+            if f1 > best_score:
+                best_score = f1
+                best_ends_hat = results[2]
 
+            # not used now but maybe useful for topk
+            candidates.append(ends_hat)
+
+        import pdb; pdb.set_trace()
         # eval
         total_gts += len(ends)
-        total_preds += len(ends_hat)
-        correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
+        total_preds += len(best_ends_hat)
+        correct_pred, _ = eval_n1(ends, best_ends_hat, tolerance)
         corrects += correct_pred
 
     precision, recall, f1, r_value, os = \
