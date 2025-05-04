@@ -1,4 +1,5 @@
 import string
+import re
 
 # support different char tokenize
 def char_tokenizer_encode(text, tokenizer, sep_space=True):
@@ -16,15 +17,13 @@ def char_tokenizer_encode(text, tokenizer, sep_space=True):
         if sep_space:
             if i < len(wrds) - 1:
                 tokens += space_id
-
     return tokens
 
 def split_chars_on_spaces(tokens, tokenizer, hypothesis, sep_space=True):
     subwords, subword_tokens = tokenizer.split_tokens_on_unicode(tokens)
-    # print(subwords, subword_tokens)
     words = []
     word_tokens = []
-
+    
     s = 0
     for i, word in enumerate(hypothesis.split()):
         subword = ""
@@ -44,8 +43,8 @@ def split_chars_on_spaces(tokens, tokenizer, hypothesis, sep_space=True):
         s = end
 
     # append eos
-    words.append(subwords[-1])
-    word_tokens.append([subword_tokens[-1]])
+    words.append('<|endoftext|>')
+    word_tokens.append([tokenizer.eot])
 
     return words, word_tokens
 
@@ -53,6 +52,6 @@ def remove_punctuation(text):
     return text.translate(str.maketrans('', '', string.punctuation))
 
 def normalizer(text):
-    text = text.replace(",", "").replace(".", "")
+    text = re.sub("[^\w\d'\s]+",'', text)
     text = text[0].upper() + text[1:]
     return text
