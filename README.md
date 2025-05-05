@@ -11,6 +11,12 @@ Todos:
 - [ ] Character-level ground truth alignments with MFA, CTC?
 - [ ] Compute character-level inference WERs by simply blocking tokens other than characters.
 
+- [ ] Word topline
+- [ ] Default Whisper
+- [ ] w/ or w/o punctuations
+- [ ] Baselines (WhisperX, CrisperWhisper)
+- [ ] Different tolerances (20ms, 50ms, 100ms, 200ms)
+- [ ] Retokenize (rule-based?) 
 Advanced:
 - [ ] Compute $\sum_{\text{next char}} \arg \max_{x \in A(prefix)} p(\text{next char}| x)$, in which $A$ is the pretrained tokenizer. 
 
