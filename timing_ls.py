@@ -91,14 +91,8 @@ def force_align(
 
     if aggregation == "mean":
         # whisper implementation:
-        L, H = w.size(0), w.size(1)
-        all_heads = torch.zeros(
-            L, H, dtype=torch.bool
-        )
-        all_heads[L // 2 :, :] = True
-        all_heads = all_heads.to_sparse()
-        w = torch.stack([w[_l][_h] for _l, _h in all_heads.indices().T])
-        matrix = w.mean(axis=0)
+        n_layers = w.size(0)
+        matrix = w[n_layers//2:].mean(axis=(0, 1))
 
     elif aggregation == "topk":
         wrd_pos = [int(i/0.02) for i in wrd_pos]

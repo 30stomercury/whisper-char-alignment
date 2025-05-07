@@ -47,7 +47,7 @@ def infer_dataset(args):
         #transcription = texts
         #transcription = transcription[0].upper() + transcription[1:]
 
-        #transcription = remove_punctuation(transcription)
+        transcription = remove_punctuation(transcription)
 
         text_tokens = encode(transcription, tokenizer, args.aligned_unit_type)
         tokens = torch.tensor(
@@ -61,10 +61,12 @@ def infer_dataset(args):
 
         # Get attention maps
         max_frames = durations // AUDIO_SAMPLES_PER_TOKEN
-        #w, logits = get_attentions(mels, tokens, model, tokenizer, max_frames, medfilt_width, qk_scale)
-        #words, start_times, end_times, ws, scores = force_align(w, text_tokens, tokenizer, 
-        #        aligned_unit_type=args.aligned_unit_type, aggregation=args.aggr, topk=args.topk)
-        words, start_times, end_times, ws, scores = default_find_alignment(model, tokenizer, text_tokens, mels, max_frames)
+        if args.default_whisper_timing:
+            words, start_times, end_times, ws, scores = default_find_alignment(model, tokenizer, text_tokens, mels, max_frames)
+        else:
+            w, logits = get_attentions(mels, tokens, model, tokenizer, max_frames, medfilt_width, qk_scale)
+            words, start_times, end_times, ws, scores = force_align(w, text_tokens, tokenizer, 
+                    aligned_unit_type=args.aligned_unit_type, aggregation=args.aggr, topk=args.topk)
         if args.plot:
             plot_attns(ws, scores, wrd_pos=ends, path=f'{args.output_dir}/imgs')
 
@@ -96,7 +98,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description="Arguments for whisper-based forced alignments")
     parser.add_argument('--model', type=str, default='medium')
-    parser.add_argument('--scp', type=str, default="scp/test-subset.wav.scp")
+    parser.add_argument('--scp', type=str, default="scp/test.wav.scp")
     parser.add_argument('--output_dir', type=str, default='results',
                         help="Path to the output directory", required=True)
     parser.add_argument('--n_mels', type=int, default=80)
@@ -106,6 +108,7 @@ def parse_args():
     parser.add_argument('--aligned_unit_type', type=str, default='subword', choices=["subword", "char"])
     parser.add_argument('--tolerance', type=float, default=0.02)
     parser.add_argument('--plot', action='store_true')
+    parser.add_argument('--default_whisper_timing', action='store_true')
 
     return parser.parse_args()
 

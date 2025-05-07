@@ -143,10 +143,11 @@ def default_find_alignment(
     # heads * tokens * frames
     weights = torch.stack([QKs[_l][_h] for _l, _h in model.alignment_heads.indices().T])
     weights = weights[:, :, : max_frames]
-    weights = (weights * qk_scale).softmax(dim=-1)
-    std, mean = torch.std_mean(weights, dim=-2, keepdim=True, unbiased=False)
-    weights = (weights - mean) / std
     weights = median_filter(weights, medfilt_width)
+    weights = (weights * qk_scale).softmax(dim=-1)
+    #std, mean = torch.std_mean(weights, dim=-2, keepdim=True, unbiased=False)
+    #weights = (weights - mean) / std
+    weights = weights / weights.norm(dim=-2, keepdim=True)
 
     matrix = weights.mean(axis=0)
     matrix = matrix[len(tokenizer.sot_sequence) : -1]
