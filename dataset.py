@@ -80,14 +80,11 @@ class LibriSpeech(torch.utils.data.Dataset):
             self.alignment_dict[fname] = eval(line.split(' ', 1)[1])
 
         self.dataset = []
-        print('collecting audio...')
-        for file in tqdm(file_list):
-            fid = file.split('/')[-1].split('.')[0]
-            audio, sample_rate = torchaudio.load(file)
-            audio = audio.squeeze()
+        for path in file_list:
+            fid = path.split('/')[-1].split('.')[0]
             text = self.label_dict[fid]
             ali = self.alignment_dict[fid]
-            self.dataset.append((audio, sample_rate, text, ali, fid))
+            self.dataset.append((path, text, ali, fid))
         self.n_mels = n_mels
         self.device = device
     
@@ -95,7 +92,9 @@ class LibriSpeech(torch.utils.data.Dataset):
         return len(self.dataset)
     
     def __getitem__(self, item):
-        audio, sample_rate, text, ali, fid = self.dataset[item]
+        path, text, ali, fid = self.dataset[item]
+        audio, sample_rate = torchaudio.load(path)
+        audio = audio.squeeze()
         assert sample_rate == 16000
         duration = len(audio.flatten())
         audio = whisper.pad_or_trim(audio.flatten())
