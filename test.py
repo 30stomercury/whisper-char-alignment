@@ -8,7 +8,7 @@ from tqdm import tqdm
 import torch
 
 from metrics import eval_n1, get_seg_metrics
-from dataset import TIMIT, Collate
+from dataset import TIMIT, LibriSpeech, Collate
 from timing import get_attentions, force_align, filter_attention, default_find_alignment
 from retokenize import encode, remove_punctuation
 from plot import plot_attns
@@ -17,12 +17,15 @@ import whisper
 from whisper.tokenizer import get_tokenizer
 from whisper.audio import HOP_LENGTH, SAMPLE_RATE, TOKENS_PER_SECOND
 
+DEVICE = f'cuda:0' if torch.cuda.is_available() else 'cpu'
+print(DEVICE)
 
 def infer_dataset(args):
     tolerance = args.tolerance
 
     # model
     model = whisper.load_model(args.model)
+    model.to(DEVICE)
 
     # decode the audio
     options = whisper.DecodingOptions(language="en")
@@ -31,7 +34,10 @@ def infer_dataset(args):
     # basically paremeters to do denoising
     medfilt_width = args.medfilt_width
     qk_scale = 1.0
-    dataset = TIMIT(args.scp, n_mels=args.n_mels, device=model.device)
+    dataset = eval(args.dataset)(args.scp, n_mels=args.n_mels, device=model.device)
+    # dataset = TIMIT(args.scp, n_mels=args.n_mels, device=model.device)
+    # dataset = LibriSpeech(arg.scp, n_mels=args.n_mels, device=model.device)
+
     loader = torch.utils.data.DataLoader(dataset, collate_fn=Collate(), batch_size=1)
 
     # decode the audio
@@ -42,6 +48,7 @@ def infer_dataset(args):
     total_gts = 0
     for n, (mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
         # print the recognized text
+        mels = mels.to(model.device)
         result = whisper.decode(model, mels, options)
         transcription = result.text
         #transcription = texts
@@ -98,6 +105,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description="Arguments for whisper-based forced alignments")
     parser.add_argument('--model', type=str, default='medium')
+    parser.add_argument('--dataset', type=str, default="TIMIT", choices=["TIMIT", "LibriSpeech"])
     parser.add_argument('--scp', type=str, default="scp/test.wav.scp")
     parser.add_argument('--output_dir', type=str, default='results',
                         help="Path to the output directory", required=True)
