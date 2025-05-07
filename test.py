@@ -20,6 +20,8 @@ from whisper.audio import HOP_LENGTH, SAMPLE_RATE, TOKENS_PER_SECOND
 DEVICE = f'cuda:0' if torch.cuda.is_available() else 'cpu'
 print(DEVICE)
 
+DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech}
+
 def infer_dataset(args):
     tolerance = args.tolerance
 
@@ -34,7 +36,7 @@ def infer_dataset(args):
     # basically paremeters to do denoising
     medfilt_width = args.medfilt_width
     qk_scale = 1.0
-    dataset = eval(args.dataset)(args.scp, n_mels=args.n_mels, device=model.device)
+    dataset = DATASET[args.dataset](args.scp, n_mels=args.n_mels, device=model.device)
     # dataset = TIMIT(args.scp, n_mels=args.n_mels, device=model.device)
     # dataset = LibriSpeech(arg.scp, n_mels=args.n_mels, device=model.device)
 
