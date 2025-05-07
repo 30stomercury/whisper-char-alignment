@@ -6,7 +6,7 @@ from glob import glob
 from tqdm import tqdm
 
 class TIMIT(torch.utils.data.Dataset):
-    def __init__(self, scp_file="scp/test.wav.scp", split="test", n_mels=80, device='cpu:0'):
+    def __init__(self, scp_file="scp/test.wav.scp", n_mels=80, device='cpu:0'):
         self.sample_rate = 16000
         self.dataset = []
         scp = open(scp_file, 'r').readlines()
