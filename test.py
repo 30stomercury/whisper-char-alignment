@@ -18,7 +18,8 @@ from whisper.tokenizer import get_tokenizer
 from whisper.audio import HOP_LENGTH, SAMPLE_RATE, TOKENS_PER_SECOND
 
 
-def infer_dataset(args, scp_file="scp/test.wav.scp", tolerance=0.02):
+def infer_dataset(args):
+    tolerance = args.tolerance
 
     # model
     model = whisper.load_model(args.model)
@@ -30,7 +31,7 @@ def infer_dataset(args, scp_file="scp/test.wav.scp", tolerance=0.02):
     # basically paremeters to do denoising
     medfilt_width = args.medfilt_width
     qk_scale = 1.0
-    dataset = TIMIT(scp_file, n_mels=args.n_mels, device=model.device)
+    dataset = TIMIT(args.scp, n_mels=args.n_mels, device=model.device)
     loader = torch.utils.data.DataLoader(dataset, collate_fn=Collate(), batch_size=1)
 
     # decode the audio
@@ -45,10 +46,10 @@ def infer_dataset(args, scp_file="scp/test.wav.scp", tolerance=0.02):
         transcription = result.text
         #transcription = texts
         #transcription = transcription[0].upper() + transcription[1:]
-        transcription = remove_punctuation(transcription)
 
-        #text_tokens = char_tokenizer_encode(transcription, tokenizer)
-        text_tokens = tokenizer.encode(transcription)
+        #transcription = remove_punctuation(transcription)
+
+        text_tokens = encode(transcription, tokenizer, args.aligned_unit_type)
         tokens = torch.tensor(
             [
                 *tokenizer.sot_sequence,
@@ -95,6 +96,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description="Arguments for whisper-based forced alignments")
     parser.add_argument('--model', type=str, default='medium')
+    parser.add_argument('--scp', type=str, default="scp/test-subset.wav.scp")
     parser.add_argument('--output_dir', type=str, default='results',
                         help="Path to the output directory", required=True)
     parser.add_argument('--n_mels', type=int, default=80)
@@ -102,6 +104,7 @@ def parse_args():
     parser.add_argument('--aggr', type=str, default="mean", choices=["mean", "topk"])
     parser.add_argument('--topk', type=int, default=15)
     parser.add_argument('--aligned_unit_type', type=str, default='subword', choices=["subword", "char"])
+    parser.add_argument('--tolerance', type=float, default=0.02)
     parser.add_argument('--plot', action='store_true')
 
     return parser.parse_args()

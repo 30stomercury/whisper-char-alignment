@@ -3,7 +3,7 @@ import string
 def encode(text, tokenizer, aligned_unit_type='subword'):
     assert aligned_unit_type in ['char', 'subword']
     if aligned_unit_type == 'subword':
-        return tokenizer.encode(transcription)
+        return tokenizer.encode(text)
     tokens = []
     space_id = tokenizer.encode(' ')
     wrds = text.split()
