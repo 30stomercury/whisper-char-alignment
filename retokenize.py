@@ -1,18 +1,24 @@
 import string
 
-def char_tokenizer_encode(text, tokenizer):
+def encode(text, tokenizer, aligned_unit_type='subword'):
+    assert aligned_unit_type in ['char', 'subword']
+    if aligned_unit_type == 'subword':
+        return tokenizer.encode(transcription)
     tokens = []
     space_id = tokenizer.encode(' ')
     wrds = text.split()
     for i in range(len(wrds)):
-        #tokens += tokenizer.encode(' '.join([char for char in wrds[i]]))
         for c in wrds[i]:
             tokens += tokenizer.encode(c)
         if i < len(wrds) - 1:
             tokens += space_id
     return tokens
 
-def split_chars_on_spaces(tokens, tokenizer):
+def split_tokens_on_spaces(tokens, tokenizer, aligned_unit_type='subword'):
+    assert aligned_unit_type in ['char', 'subword']
+    if aligned_unit_type == 'subword':
+        return tokenizer.split_to_word_tokens(tokens)
+
     subwords, subword_tokens_list = tokenizer.split_tokens_on_unicode(tokens)
     words = []
     word_tokens = []
