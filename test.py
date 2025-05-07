@@ -20,6 +20,9 @@ from whisper.audio import HOP_LENGTH, SAMPLE_RATE, TOKENS_PER_SECOND
 DEVICE = f'cuda:0' if torch.cuda.is_available() else 'cpu'
 print(DEVICE)
 
+MAX_FRAMES = 1500
+MAX_LENGTH = 448
+
 DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech}
 
 def infer_dataset(args):
@@ -70,6 +73,11 @@ def infer_dataset(args):
 
         # Get attention maps
         max_frames = durations // AUDIO_SAMPLES_PER_TOKEN
+        # temp hard code, skip too long utterances (> max_token_length or > 30s)
+        if max_frames > MAX_FRAMES or len(tokens) > MAX_LENGTH:
+            print(fids)
+            continue
+
         if args.default_whisper_timing:
             words, start_times, end_times, ws, scores = default_find_alignment(model, tokenizer, text_tokens, mels, max_frames)
         else:
