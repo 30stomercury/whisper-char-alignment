@@ -5,6 +5,16 @@ import whisper
 from glob import glob
 from tqdm import tqdm
 
+
+
+
+class Collate: 
+    def __call__(self, batch):
+        one_batch = list(zip(*batch))
+        audio, mel, duration, text, starts, ends, fid = one_batch
+        return  audio[0], mel[0], duration[0], text[0], starts[0], ends[0], fid[0]
+
+
 class TIMIT(torch.utils.data.Dataset):
     def __init__(self, scp_file="scp/test.wav.scp", n_mels=80, device='cpu:0'):
         self.sample_rate = 16000
@@ -35,7 +45,7 @@ class TIMIT(torch.utils.data.Dataset):
         mel = whisper.log_mel_spectrogram(audio, self.n_mels)
         mel = mel.to(self.device)
 
-        return mel, duration, text, starts, ends, fid
+        return audio, mel, duration, text, starts, ends, fid
 
     def process_text(self, filename):
         starts = []
@@ -49,12 +59,6 @@ class TIMIT(torch.utils.data.Dataset):
             texts.append(splits[2])
         texts = " ".join(texts)
         return texts, starts, ends
-
-class Collate: 
-    def __call__(self, batch):
-        one_batch = list(zip(*batch))
-        mel, duration, text, starts, ends, fid = one_batch
-        return  mel[0], duration[0], text[0], starts[0], ends[0], fid[0]
 
 
 class LibriSpeech(torch.utils.data.Dataset):
@@ -109,4 +113,4 @@ class LibriSpeech(torch.utils.data.Dataset):
                 starts.append(item[1])
                 ends.append(item[2])
 
-        return (mel, duration, text, starts, ends, fid)
+        return (audio, mel, duration, text, starts, ends, fid)
