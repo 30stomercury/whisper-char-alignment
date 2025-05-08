@@ -66,10 +66,13 @@ class LibriSpeech(torch.utils.data.Dataset):
     A simple class to wrap LibriSpeech and trim/pad the audio to 30 seconds.
     It will drop the last few seconds of a very small portion of the utterances.
     """
-    def __init__(self, scp_file="scp/test.wav.scp", n_mels=80, device='cpu:0'):
-        root = '/disk/scratch/s2522924/LibriSpeech'
-        split = 'dev-clean' # temp hard code
-        file_list = sorted(glob(os.path.join(root, split, "**/*.flac"), recursive=True))
+    def __init__(self, scp_file="scp/dev-clean.wav.scp", n_mels=80, device='cpu:0'):
+        # root = '/disk/scratch/s2522924/LibriSpeech'
+        # split = 'dev-clean' # temp hard code
+        # file_list = sorted(glob(os.path.join(root, split, "**/*.flac"), recursive=True))
+        scp = open(scp_file, 'r').readlines()
+        split = scp[0].split(' ')[1].split('/')[-4]
+        root = scp[0].split(' ')[1].split(split)[0]
         trans_list = sorted(glob(os.path.join(root, split, "**/*.trans.txt"), recursive=True))
         self.label_dict = {}
         for trans in trans_list:
@@ -84,14 +87,12 @@ class LibriSpeech(torch.utils.data.Dataset):
             self.alignment_dict[fname] = eval(line.split(' ', 1)[1])
 
         self.dataset = []
-        print('collecting audio...')
-        for file in tqdm(file_list):
-            fid = file.split('/')[-1].split('.')[0]
-            audio, sample_rate = torchaudio.load(file)
-            audio = audio.squeeze()
+        for line in scp:
+            splits = line.split()
+            fid, path = splits[0], splits[1]
             text = self.label_dict[fid]
             ali = self.alignment_dict[fid]
-            self.dataset.append((audio, sample_rate, text, ali, fid))
+            self.dataset.append((path, text, ali, fid))
         self.n_mels = n_mels
         self.device = device
     
@@ -99,7 +100,9 @@ class LibriSpeech(torch.utils.data.Dataset):
         return len(self.dataset)
     
     def __getitem__(self, item):
-        audio, sample_rate, text, ali, fid = self.dataset[item]
+        path, text, ali, fid = self.dataset[item]
+        audio, sample_rate = torchaudio.load(path)
+        audio = audio.squeeze()
         assert sample_rate == 16000
         duration = len(audio.flatten())
         audio = whisper.pad_or_trim(audio.flatten())
