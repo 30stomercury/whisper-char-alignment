@@ -110,7 +110,6 @@ def infer_dataset(args):
     with open(f"{args.output_dir}/{filename}.json", 'w') as f:
         json.dump(results, f)
 
-
 def parse_args():
 
     parser = argparse.ArgumentParser(description="Arguments for whisper-based forced alignments")
