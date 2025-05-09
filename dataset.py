@@ -125,6 +125,7 @@ class AMI(torch.utils.data.Dataset):
     def __init__(self, scp_file="scp/test.wav.scp", n_mels=80, device='cpu:0'):
         import xml.etree.ElementTree as ET
         from datasets import load_dataset
+        # TODO see /Users/slyeh/Downloads/ami_public_manual_1.6.2/corpusResources/meetings.xml
         ds = load_dataset("edinburghcstr/ami", "ihm")
         x = ET.parse('/Users/slyeh/Downloads/ami_public_auto_1.5.1/ASR/ASR_AS_CTM_v1.0_feb07/EN2001a.B.words.xml')
         root = x.getroot()
