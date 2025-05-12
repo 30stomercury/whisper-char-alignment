@@ -4,6 +4,10 @@ import torchaudio
 import whisper
 from glob import glob
 from tqdm import tqdm
+import numpy as np
+from collections import defaultdict
+from datasets import load_dataset, Audio
+import xml.etree.ElementTree as ET
 
 
 
@@ -122,28 +126,57 @@ class LibriSpeech(torch.utils.data.Dataset):
 
 
 class AMI(torch.utils.data.Dataset):
-    def __init__(self, scp_file="scp/test.wav.scp", n_mels=80, device='cpu:0'):
-        import xml.etree.ElementTree as ET
-        from datasets import load_dataset
-        # TODO see /Users/slyeh/Downloads/ami_public_manual_1.6.2/corpusResources/meetings.xml
-        ds = load_dataset("edinburghcstr/ami", "ihm")
-        x = ET.parse('/Users/slyeh/Downloads/ami_public_auto_1.5.1/ASR/ASR_AS_CTM_v1.0_feb07/EN2001a.B.words.xml')
-        root = x.getroot()
-        for child in root:
-            print(child.tag, child.attrib)
+    def __init__(self, data_dir="/home/s2196654/dataset/AMI/", n_mels=80, device='cpu:0'):
+        subset = 'ihm'
+        dataset = load_dataset('edinburghcstr/ami', subset, split='test')
+
+        spk_mapping = self.load_speaker_mapping(data_dir)
+        all_meetings = {}
+        for meeting_id in set(dataset['meeting_id']):
+            for k, v in spk_mapping[meeting_id].items():
+                all_meetings[f"{meeting_id}.{v}"] = self.load_meeting(data_dir, meeting_id, v)
+
+
+        meeting_clips = defaultdict(list)
+        for datapoint in dataset:
+            meeting_id = datapoint['meeting_id']
+            spk_id = datapoint['speaker_id']
+            # spk in A-D
+            spk = spk_mapping[meeting_id][spk_id]
+            meeting_spk_id = f"{datapoint['meeting_id']}.{spk}"
+            if meeting_spk_id not in ['EN2002a.A']: #, 'EN2002a.B', 'EN2002a.C', 'EN2002a.D']:
+                continue
+            meeting_clips[meeting_spk_id].append(
+                (
+                    datapoint['begin_time'], 
+                    datapoint['end_time'], 
+                    datapoint['text'], 
+                    datapoint['audio']['path']
+                )
+            )
+
+        output = self.get_clip_alignments(meeting_clips, all_meetings)
+        print("total clips:", sum([len([i[-1] for i in output[x]]) for x in output]))
+
         self.sample_rate = 16000
         self.dataset = []
-        for line in scp:
-            splits = line.split()
-            fid = splits[0]
-            # audio
-            audio_file = splits[1]
-            audio, sample_rate = torchaudio.load(audio_file)
-            audio = audio.squeeze()
-            # text
-            text_file = audio_file.split('.wav')[0] + '.wrd'
-            text, starts, ends = self.process_text(text_file)
-            self.dataset.append((audio, sample_rate, text, starts, ends, fid))
+        clip_id = 0
+        
+        for meeting_spk_id in output:
+            for (path, s, e, wrds, clip_to_wrd_alignments) in output[meeting_spk_id]:
+                if len(clip_to_wrd_alignments) == 0:
+                    continue
+                starts = []
+                ends = []
+                text = []
+                for (wrd_s, wrd_e, wrd_gt) in clip_to_wrd_alignments:
+                    # make it to relative timestamps by substracting s
+                    starts.append(wrd_s-s)
+                    ends.append(wrd_e-s)
+                    text.append(wrd_gt)
+                fid = meeting_spk_id + f'.{clip_id}'
+                clip_id += 1
+                self.dataset.append((path, self.sample_rate, text, starts, ends, fid))
         self.n_mels = n_mels
         self.device = device
 
@@ -151,7 +184,8 @@ class AMI(torch.utils.data.Dataset):
         return len(self.dataset)
 
     def __getitem__(self, item):
-        audio, sample_rate, text, starts, ends, fid = self.dataset[item]
+        audio_file, sample_rate, text, starts, ends, fid = self.dataset[item]
+        audio, sample_rate = torchaudio.load(audio_file)
         assert sample_rate == self.sample_rate
         duration = len(audio.flatten())
         audio = whisper.pad_or_trim(audio.flatten())
@@ -160,16 +194,90 @@ class AMI(torch.utils.data.Dataset):
 
         return audio, mel, duration, text, starts, ends, fid
 
-    def process_text(self, filename):
-        starts = []
-        ends = []
-        texts = []
-        f = open(filename, 'r')
-        for line in f.readlines():
-            splits = line.split()
-            starts.append(float(splits[0])/self.sample_rate)
-            ends.append(float(splits[1])/self.sample_rate)
-            texts.append(splits[2])
-        texts = " ".join(texts)
-        return texts, starts, ends
+    def load_speaker_mapping(self, data_dir):
+        target = f"{data_dir}/corpusResources/meetings.xml"
+        x = ET.parse(target)
+        root = x.getroot()
+
+        spk_mapping = {}
+        # Iterate over all 'speaker' elements inside 'meeting'
+        for meeting in root.findall("meeting"):
+            meeting_id = meeting.attrib.get("observation")
+            spk_mapping[meeting_id] = {}
+            for speaker in meeting.findall("speaker"):
+                global_name = speaker.attrib.get("global_name")
+                nxt_agent = speaker.attrib.get("nxt_agent")
+                if global_name and nxt_agent:
+                   spk_mapping[meeting_id][global_name] = nxt_agent
+
+        return spk_mapping
+
+    def load_meeting(self, data_dir, meeting_id, spk):
+        # e.g., '/path//AMI/words/EN2001a.B.words.xml'
+        # --> '/home/s2196654/dataset/AMI/words/EN2001a.B.words.xml'
+        target_meeting = f"{data_dir}/words/{meeting_id}.{spk}.words.xml"
+        x = ET.parse(target_meeting)
+        root = x.getroot()
+        namespace = {'nite': 'http://nite.sourceforge.net/'}
+
+        # Extract the data
+        word_tuples = []
+        for w in root.findall('w', namespaces=namespace) + root.findall('nite:w', namespaces=namespace):
+            punc = False
+            if 'punc' in w.attrib:
+                punc = bool(w.attrib['punc'])
+            start = float(w.attrib['starttime'])
+            end = float(w.attrib['endtime'])
+            text = w.text.strip() if w.text else ""
+            # Skip punctuations
+            if text and not punc:  
+                word_tuples.append((start, end, text))
+        return word_tuples
+
+
+    def find_start_point(self, s, wrd_alignments, wrd_id):
+        wrd_gt_s = wrd_alignments[wrd_id][0]
+        while abs((s - wrd_gt_s)) > 0.005:
+            wrd_id += 1
+            if len(wrd_alignments) == wrd_id:
+                return -1
+            wrd_gt_s = wrd_alignments[wrd_id][0]
+        return wrd_id
+
+    def get_clip_alignments(self, meeting_clips, all_wrd_alignments):
+        # convert from clip alignments to wrd-level alignments
+        output = defaultdict(list)
+        for meeting_spk_id in meeting_clips:
+            meeting_clips[meeting_spk_id].sort()
+            clip_alignments = meeting_clips[meeting_spk_id]
+            wrd_alignments = all_wrd_alignments[meeting_spk_id]
+
+            # find where to start
+            wrd_id = 0
+
+            # align
+            for (s, e, wrds, audio) in clip_alignments:
+                clip_to_wrd_alignments = []
+
+                wrd_id_tmp = wrd_id
+                wrd_id = self.find_start_point(s, wrd_alignments, wrd_id)
+                if wrd_id == -1:
+                    wrd_id = wrd_id_tmp
+                    print("No alignments")
+                    continue
+
+                if len(wrds.split()) == 1:
+                    continue
+                for w in wrds.split():
+                    wrd_s, wrd_e, wrd_gt = wrd_alignments[wrd_id]
+                    wrd_gt = wrd_gt.upper()
+                    if w != wrd_gt:
+                        print(w, wrd_gt)
+                        clip_to_wrd_alignments = []
+                        break
+                    wrd_id += 1
+                    clip_to_wrd_alignments.append((wrd_s, wrd_e, wrd_gt))
+                    
+                output[meeting_spk_id].append((audio, s, e, wrds, clip_to_wrd_alignments))
+        return output
 

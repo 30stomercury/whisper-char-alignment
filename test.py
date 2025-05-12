@@ -8,7 +8,7 @@ from tqdm import tqdm
 import torch
 
 from metrics import eval_n1, get_seg_metrics
-from dataset import TIMIT, LibriSpeech, Collate
+from dataset import TIMIT, LibriSpeech, AMI, Collate
 from timing import get_attentions, force_align, filter_attention, default_find_alignment
 from retokenize import encode, remove_punctuation
 from plot import plot_attns
@@ -23,7 +23,7 @@ print(DEVICE)
 MAX_FRAMES = 1500
 MAX_LENGTH = 448
 
-DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech}
+DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech, "AMI": AMI}
 
 def infer_dataset(args):
     tolerance = args.tolerance
@@ -40,8 +40,6 @@ def infer_dataset(args):
     medfilt_width = args.medfilt_width
     qk_scale = 1.0
     dataset = DATASET[args.dataset](args.scp, n_mels=args.n_mels, device=model.device)
-    # dataset = TIMIT(args.scp, n_mels=args.n_mels, device=model.device)
-    # dataset = LibriSpeech(arg.scp, n_mels=args.n_mels, device=model.device)
 
     loader = torch.utils.data.DataLoader(dataset, collate_fn=Collate(), batch_size=1)
 
@@ -51,11 +49,13 @@ def infer_dataset(args):
     corrects = 0
     total_preds = 0
     total_gts = 0
-    for n, (mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
+    for n, (audios, mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
         # print the recognized text
         mels = mels.to(model.device)
         result = whisper.decode(model, mels, options)
         transcription = result.text
+        print(texts)
+        print(transcription)
         #transcription = texts
         #transcription = transcription[0].upper() + transcription[1:]
 
@@ -73,11 +73,6 @@ def infer_dataset(args):
 
         # Get attention maps
         max_frames = durations // AUDIO_SAMPLES_PER_TOKEN
-        # temp hard code, skip too long utterances (> max_token_length or > 30s)
-        if max_frames > MAX_FRAMES or len(tokens) > MAX_LENGTH:
-            print(fids)
-            continue
-
         if args.default_whisper_timing:
             words, start_times, end_times, ws, scores = default_find_alignment(model, tokenizer, text_tokens, mels, max_frames)
         else:
@@ -110,11 +105,12 @@ def infer_dataset(args):
     with open(f"{args.output_dir}/{filename}.json", 'w') as f:
         json.dump(results, f)
 
+
 def parse_args():
 
     parser = argparse.ArgumentParser(description="Arguments for whisper-based forced alignments")
     parser.add_argument('--model', type=str, default='medium')
-    parser.add_argument('--dataset', type=str, default="TIMIT", choices=["TIMIT", "LibriSpeech"])
+    parser.add_argument('--dataset', type=str, default="TIMIT", choices=["TIMIT", "LibriSpeech", "AMI"])
     parser.add_argument('--scp', type=str, default="scp/test.wav.scp")
     parser.add_argument('--output_dir', type=str, default='results',
                         help="Path to the output directory", required=True)
