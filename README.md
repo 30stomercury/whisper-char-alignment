@@ -43,3 +43,14 @@ Alignments:
 Results:
 - https://docs.google.com/spreadsheets/d/1kl7ZgPFvuXrfS4rinyrScX6EFLR03-H0eWfIwQ_stOg/edit?usp=sharing
 - [related work](https://docs.google.com/document/d/1oEsVdRs08uYDPpW35wB31KWYkD3qxliAgZphPbCpISk/edit?usp=sharing)
+
+
+
+
+### AMI
+```
+pip3 install datasets
+pip3 install librosa
+export HF_HUB_OFFLINE=1
+python3 test.py --dataset AMI --output_dir results_debug/ --scp ../dataset/AMI/
+```
