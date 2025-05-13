@@ -15,18 +15,31 @@ def filter_attention(attns, topk=20):
     attns : torch.tensor in (layers, heads, tokens, frames)
     """
     # filter with coverage penalty
+    norm = attns.norm(dim=-2, keepdim=True)
+    attns_ = attns / norm
     scores = []
     for l in range(attns.size(0)):
         for n_h in range(attns.size(1)):
-            score = coverage_penalty(attns[l, n_h])
+            score = norm[l, n_h].sum() 
+            score -= coverage_penalty(attns[l, n_h])
+            #print(norm[l, n_h].sum(), coverage_penalty(attns[l, n_h]))
             name = f"sample_layer{l}_head{n_h}"
             scores.append((score, (l, n_h), name))
-    scores_sorted = sorted(scores)[:topk]
+
+    scores_sorted = sorted(scores)[-topk:]
+
+#    attns_ = attns * norm
+#    scores = []
+#    for score, (l, n_h), name in scores_sorted:
+#        score = coverage_penalty(attns_[l, n_h])
+#        name = f"sample_layer{l}_head{n_h}"
+#        scores.append((score, (l, n_h), name))
+#    scores_sorted = sorted(scores)[-topk:]
 
     selected_attns = []
     for score, (l, n_h), name in scores_sorted:
         name = f"sample_layer{l}_head{n_h}"
-        selected_attns.append(attns[l, n_h].unsqueeze(0))
+        selected_attns.append(attns_[l, n_h].unsqueeze(0))
 
     return selected_attns, scores_sorted
 
@@ -52,7 +65,6 @@ def get_attentions(mel, tokens, model, tokenizer, max_frames, medfilt_width=7, q
     weights = weights[..., :max_frames]
     weights = median_filter(weights, medfilt_width)
     weights = (weights * qk_scale).softmax(dim=-1)
-    weights = weights / weights.norm(dim=-2, keepdim=True)
     return weights, logits
 
 def force_align(
@@ -70,6 +82,7 @@ def force_align(
     scores = None
     if aggregation == "mean":
         # whisper implementation:
+        ws = ws / ws.norm(dim=-2, keepdim=True)
         n_layers = ws.size(0)
         ws = ws[n_layers//2:]
         matrix = ws.mean(axis=(0, 1))
@@ -148,9 +161,8 @@ def default_find_alignment(
     weights = weights[:, :, : max_frames]
     weights = median_filter(weights, medfilt_width)
     weights = (weights * qk_scale).softmax(dim=-1)
-    #std, mean = torch.std_mean(weights, dim=-2, keepdim=True, unbiased=False)
-    #weights = (weights - mean) / std
-    weights = weights / weights.norm(dim=-2, keepdim=True)
+    std, mean = torch.std_mean(weights, dim=-2, keepdim=True, unbiased=False)
+    weights = (weights - mean) / std
 
     matrix = weights.mean(axis=0)
     matrix = matrix[len(tokenizer.sot_sequence) : -1]
