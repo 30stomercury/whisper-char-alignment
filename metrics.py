@@ -121,7 +121,7 @@ def coverage_penalty(attn, threshold=0.5):
         coverage, coverage.clone().fill_(threshold)
     ).sum(-1)
     penalty = penalty - coverage.size(-1) * threshold
-    return penalty
+    return penalty.log()
 
 def entropy(prob, eps=1e-15):
     # compute mean entropy
