@@ -73,6 +73,10 @@ def infer_dataset(args):
 
         # Get attention maps
         max_frames = durations // AUDIO_SAMPLES_PER_TOKEN
+        if max_frames > MAX_FRAMES or len(tokens) > MAX_LENGTH:
+            print(fids)
+            continue
+        
         if args.default_whisper_timing:
             words, start_times, end_times, ws, scores = default_find_alignment(model, tokenizer, text_tokens, mels, max_frames)
         else:
