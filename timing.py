@@ -80,6 +80,9 @@ def force_align(
         ws, scores = filter_attention(ws, topk=topk)
         matrix = torch.cat(ws, 0).mean(0)
 
+    elif aggregation == 'grad_norm':
+        matrix = ws
+
     matrix = matrix[len(tokenizer.sot_sequence):-1].cpu()
     text_indices, time_indices = dtw(-matrix)
 
