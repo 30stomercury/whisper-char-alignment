@@ -60,6 +60,8 @@ def infer_dataset(args):
         #transcription = transcription[0].upper() + transcription[1:]
 
         transcription = remove_punctuation(transcription)
+        if len(transcription) == '':
+            transcription = ' '
 
         text_tokens = encode(transcription, tokenizer, args.aligned_unit_type)
         tokens = torch.tensor(
