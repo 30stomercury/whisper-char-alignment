@@ -8,7 +8,8 @@ from tqdm import tqdm
 import torch
 
 from metrics import eval_n1, get_seg_metrics
-from dataset import TIMIT, LibriSpeech, Collate
+from dataset import TIMIT, LibriSpeech, AMI, Collate
+from retokenize import encode, remove_punctuation
 
 import whisperx
 
@@ -16,7 +17,7 @@ import whisperx
 DEVICE = f'cuda:0' if torch.cuda.is_available() else 'cpu'
 print(DEVICE)
 
-DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech}
+DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech, "AMI": AMI}
 
 def infer_dataset(args):
     tolerance = args.tolerance
@@ -41,6 +42,8 @@ def infer_dataset(args):
         
         audios = audios.cpu().detach().numpy()
         result = model.transcribe(audios, batch_size=batch_size)
+        for segment in result['segments']:
+            segment['text'] = remove_punctuation(segment['text'])
 
         # 2. Align whisper output
         result = whisperx.align(
@@ -75,7 +78,7 @@ def parse_args():
     parser.add_argument('--output_dir', type=str, default='results',
                         help="Path to the output directory", required=True)
     parser.add_argument('--model', type=str, default='medium')
-    parser.add_argument('--dataset', type=str, default="TIMIT", choices=["TIMIT", "LibriSpeech"])
+    parser.add_argument('--dataset', type=str, default="TIMIT", choices=["TIMIT", "LibriSpeech", "AMI"])
     parser.add_argument('--n_mels', type=int, default=80)
     parser.add_argument('--scp', type=str, default="scp/test.wav.scp")
     parser.add_argument('--tolerance', type=float, default=0.02)
