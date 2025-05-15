@@ -1,4 +1,6 @@
 import string
+from num2words import num2words
+
 
 def encode(text, tokenizer, aligned_unit_type='subword'):
     assert aligned_unit_type in ['char', 'subword']
@@ -37,4 +39,12 @@ def split_tokens_on_spaces(tokens, tokenizer, aligned_unit_type='subword'):
     return words, word_tokens
 
 def remove_punctuation(text):
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    normalized_text = []
+    for wrd in text.split():
+        if wrd.isdigit():
+            wrd = num2words(int(wrd))
+        normalized_text.append(wrd)
+
+    text = ' '.join(normalized_text)
     return text.translate(str.maketrans('', '', string.punctuation))
