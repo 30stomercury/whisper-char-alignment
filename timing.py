@@ -27,7 +27,7 @@ def filter_attention(attns, topk=20):
             #score -= penalty
             #print(norm[l, n_h].sum(), attns.norm(dim=-1, keepdim=True)[l, n_h].sum())
             name = f"sample_layer{l}_head{n_h}"
-            scores.append((score, (l, n_h), name))
+            scores.append((score, col_norm[l, n_h].sum().item(), raw_norm[l, n_h].sum().item(),(l, n_h), name))
 
     scores_sorted = sorted(scores)[-topk:]
 
@@ -40,7 +40,7 @@ def filter_attention(attns, topk=20):
 #    scores_sorted = sorted(scores)[-topk:]
 
     selected_attns = []
-    for score, (l, n_h), name in scores_sorted:
+    for score, _, _, (l, n_h), name in scores_sorted:
         name = f"sample_layer{l}_head{n_h}"
         selected_attns.append(attns_[l, n_h].unsqueeze(0))
 
@@ -109,7 +109,7 @@ def force_align(
         # array([0.])
         # This results in crashes when we lookup jump_times with float, like
         # IndexError: arrays used as indices must be of integer (or boolean) type
-        return []
+        return [[], [], [], [], None]
     word_boundaries = np.pad(np.cumsum([len(t) for t in word_tokens[:-1]]), (1, 0))
 
     jumps = np.pad(np.diff(text_indices), (1, 0), constant_values=1).astype(bool)
@@ -128,8 +128,6 @@ def default_find_alignment(
     medfilt_width=7,
     qk_scale=1.0,
 ):
-    if len(text_tokens) == 0:
-        return []
 
     tokens = torch.tensor(
         [
@@ -178,7 +176,7 @@ def default_find_alignment(
         # array([0.])
         # This results in crashes when we lookup jump_times with float, like
         # IndexError: arrays used as indices must be of integer (or boolean) type
-        return []
+        return [[], [], [], [], None]
     word_boundaries = np.pad(np.cumsum([len(t) for t in word_tokens[:-1]]), (1, 0))
 
     jumps = np.pad(np.diff(text_indices), (1, 0), constant_values=1).astype(bool)
