@@ -106,7 +106,7 @@ def infer_dataset(args):
             w.append(grad_norm[:, :max_frames])
         w = torch.cat(w)
         # w = median_filter(w, args.medfilt_width)
-        # w = w.softmax(dim=-1)
+        w = w.softmax(dim=-1)
         std, mean = torch.std_mean(w, dim=-2, keepdim=True, unbiased=False)
         w = (w - mean) / std
         # print(w)
