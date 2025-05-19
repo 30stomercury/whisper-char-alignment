@@ -41,7 +41,7 @@ def infer_dataset(args):
     tokenizer = get_tokenizer(model.is_multilingual, language='English')
 
     # basically paremeters to do denoising
-    medfilt_width = args.medfilt_width
+    # medfilt_width = args.medfilt_width
     qk_scale = 1.0
     dataset = DATASET[args.dataset](args.scp, n_mels=args.n_mels, device=model.device)
 
@@ -105,13 +105,12 @@ def infer_dataset(args):
             grad_norm = grad.norm(dim=2)
             w.append(grad_norm[:, :max_frames])
         w = torch.cat(w)
-        w = median_filter(w, args.medfilt_width)
+        # w = median_filter(w, args.medfilt_width)
         w = w.softmax(dim=-1)
         std, mean = torch.std_mean(w, dim=-2, keepdim=True, unbiased=False)
         w = (w - mean) / std
-        # w = w / w.norm(dim=-2, keepdim=True)
-        print(w)
-        print(w.shape)
+        # print(w)
+        # print(w.shape)
 
         words, start_times, end_times, ws, scores = force_align(w, text_tokens, tokenizer, 
                     aligned_unit_type=args.aligned_unit_type, aggregation="grad_norm")
@@ -135,13 +134,13 @@ def infer_dataset(args):
     print(precision, recall, f1, r_value)
 
     # dump results
-    # ts = time.time()
-    # filename = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d-%H:%M:%S')
-    # results = {**vars(args), **results}
-    # if not os.path.exists(args.output_dir):
-    #     os.makedirs(args.output_dir)
-    # with open(f"{args.output_dir}/{filename}.json", 'w') as f:
-    #     json.dump(results, f)
+    ts = time.time()
+    filename = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d-%H:%M:%S')
+    results = {**vars(args), **results}
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+    with open(f"{args.output_dir}/grad-{filename}.json", 'w') as f:
+        json.dump(results, f)
 
 def parse_args():
 
@@ -152,7 +151,7 @@ def parse_args():
     parser.add_argument('--output_dir', type=str, default='results',
                         help="Path to the output directory", required=True)
     parser.add_argument('--n_mels', type=int, default=80)
-    parser.add_argument('--medfilt_width', type=int, default=7)
+    # parser.add_argument('--medfilt_width', type=int, default=7)
     parser.add_argument('--aligned_unit_type', type=str, default='subword', choices=["subword", "char"])
     parser.add_argument('--tolerance', type=float, default=0.02)
     parser.add_argument('--plot', action='store_true')
