@@ -17,6 +17,13 @@ from whisper.audio import HOP_LENGTH, SAMPLE_RATE, TOKENS_PER_SECOND
 from faster_whisper import WhisperModel
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
+
+"""
+pip install git+https://github.com/nyrahealth/transformers.git@crisper_whisper
+huggingface-cli login
+"""
+
+
 def adjust_pauses_for_hf_pipeline_output(pipeline_output, split_threshold=0.12):
     """
     Adjust pause timings by distributing pauses up to the threshold evenly between adjacent words.
