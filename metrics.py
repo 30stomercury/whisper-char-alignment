@@ -5,6 +5,22 @@ import numpy as np
 import torch
 import torchaudio
 
+def dtw_timestamp(gt_ends, pred_ends):
+    n, m = len(gt_ends), len(pred_ends)
+    dtw_matrix = np.full((n + 1, m + 1), np.inf)
+    dtw_matrix[0, 0] = 0
+
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            cost = np.abs(gt_ends[i - 1] - pred_ends[j - 1]) 
+            dtw_matrix[i, j] = cost + min(
+                dtw_matrix[i - 1, j],    
+                dtw_matrix[i, j - 1],    
+                dtw_matrix[i - 1, j - 1]
+            )
+
+    distance = dtw_matrix[n, m]
+    return distance, dtw_matrix
 
 def eval_n1(y, yhat, tolerance=1):
     def is_match(i, j, tolerance):
@@ -66,6 +82,7 @@ def coverage_penalty(attn, threshold=0.5):
         coverage, coverage.clone().fill_(threshold)
     ).sum(-1)
     penalty = penalty - coverage.size(-1) * threshold
+    penalty = torch.sum(coverage >= threshold)
     return penalty
 
 def entropy(prob, eps=1e-15):
