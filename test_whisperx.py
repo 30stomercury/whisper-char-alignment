@@ -46,10 +46,15 @@ def infer_dataset(args):
             segment['text'] = remove_punctuation(segment['text'])
 
         # 2. Align whisper output
-        result = whisperx.align(
-                result["segments"], model_a, metadata, audios, device, return_char_alignments=False)
-        total_words = len(result["segments"][0]['words'])
-        ends_hat = [result["segments"][0]['words'][i]['end'] for i in range(total_words)]
+        ends_hat = []
+        if len(result["segments"]) > 0:
+            result = whisperx.align(
+                    result["segments"], model_a, metadata, audios, device, return_char_alignments=False)
+            total_words = len(result["segments"][0]['words'])
+            ends_hat = [] 
+            for i in range(total_words):
+                if 'end' in result["segments"][0]['words'][i]:
+                    ends_hat.append(result["segments"][0]['words'][i]['end'])
 
         # eval
         total_gts += len(ends)
