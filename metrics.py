@@ -82,7 +82,6 @@ def coverage_penalty(attn, threshold=0.5):
         coverage, coverage.clone().fill_(threshold)
     ).sum(-1)
     penalty = penalty - coverage.size(-1) * threshold
-    penalty = torch.sum(coverage >= threshold)
     return penalty
 
 def entropy(prob, eps=1e-15):
