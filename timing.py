@@ -10,39 +10,36 @@ from whisper.timing import median_filter, dtw
 from whisper.audio import HOP_LENGTH, SAMPLE_RATE, TOKENS_PER_SECOND
 
 
-def filter_attention(attns, topk=20):
+def filter_attention(attns, topk=20, w_colnorm=1, w_rownorm=1, w_coverage=0):
     """
     attns : torch.tensor in (layers, heads, tokens, frames)
     """
     # filter with coverage penalty
-    col_norm = attns.norm(dim=-2, keepdim=True)
-    raw_norm = attns.norm(dim=-1, keepdim=True)
-    attns_ = attns / col_norm
+    n_layers = attns.size(0)
+    n_heads = attns.size(1)
+    score_matix = torch.zeros(n_layers, n_heads, device=attns.device)
+    if w_colnorm > 0:
+        col_norm_sum = attns.norm(dim=-2).sum(-1)
+        score_matix += w_colnorm * col_norm_sum
+    if w_rownorm > 0:
+        row_norm_sum = attns.norm(dim=-1).sum(-1)
+        score_matix += w_rownorm * row_norm_sum
     scores = []
     for l in range(attns.size(0)):
         for n_h in range(attns.size(1)):
-            score = col_norm[l, n_h].sum() 
-            #penalty = coverage_penalty(attns[l, n_h])
-            score += raw_norm[l, n_h].sum()
-            #score -= penalty
-            #print(norm[l, n_h].sum(), attns.norm(dim=-1, keepdim=True)[l, n_h].sum())
+            score = score_matix[l, n_h]
+            if w_coverage > 0:
+                penalty = w_coverage * coverage_penalty(attns[l, n_h])
+                score -= penalty
             name = f"sample_layer{l}_head{n_h}"
-            scores.append((score, col_norm[l, n_h].sum().item(), raw_norm[l, n_h].sum().item(),(l, n_h), name))
+            scores.append((score.item(),(l, n_h), name))
 
     scores_sorted = sorted(scores)[-topk:]
 
-#    attns_ = attns * norm
-#    scores = []
-#    for score, (l, n_h), name in scores_sorted:
-#        score = coverage_penalty(attns_[l, n_h])
-#        name = f"sample_layer{l}_head{n_h}"
-#        scores.append((score, (l, n_h), name))
-#    scores_sorted = sorted(scores)[-topk:]
-
     selected_attns = []
-    for score, _, _, (l, n_h), name in scores_sorted:
+    for score, (l, n_h), name in scores_sorted:
         name = f"sample_layer{l}_head{n_h}"
-        selected_attns.append(attns_[l, n_h].unsqueeze(0))
+        selected_attns.append(attns[l, n_h].unsqueeze(0))
 
     return selected_attns, scores_sorted
 
@@ -76,6 +73,9 @@ def force_align(
         aligned_unit_type='subword',
         aggregation="mean", 
         topk=-1, 
+        w_colnorm=1.0,
+        w_rownorm=1.0,
+        w_coverage=0.0
     ):
     """
     w : torch.tensor in (layers, heads, tokens, frames)
@@ -93,8 +93,10 @@ def force_align(
     elif aggregation == "topk":
         assert topk > 0
         # select attentions:
-        ws, scores = filter_attention(ws, topk=topk)
-        matrix = torch.cat(ws, 0).mean(0)
+        ws, scores = filter_attention(ws, topk, w_colnorm, w_rownorm, w_coverage)
+        matrix = torch.cat(ws, 0)
+        col_norm = matrix.norm(dim=-2, keepdim=True)
+        matrix = torch.mean(matrix / col_norm, 0)
 
     elif aggregation == 'grad_norm':
         matrix = ws
