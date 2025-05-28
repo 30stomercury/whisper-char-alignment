@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 import torch
 
-from metrics import eval_n1, get_seg_metrics
+from metrics import eval_n1, eval_n1_strict, get_seg_metrics
 from dataset import TIMIT, LibriSpeech, AMI, Collate
 from timing import get_attentions, force_align, filter_attention, default_find_alignment
 from retokenize import encode, remove_punctuation
@@ -26,6 +26,7 @@ MAX_LENGTH = 448
 DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech, "AMI": AMI}
 
 def infer_dataset(args):
+    print(args)
     tolerance = args.tolerance
 
     # model
@@ -50,15 +51,17 @@ def infer_dataset(args):
     total_preds = 0
     total_gts = 0
     for n, (audios, mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
+
         # print the recognized text
         mels = mels.to(model.device)
         result = whisper.decode(model, mels, options)
         transcription = result.text
-        print(texts)
-        print(transcription)
+        #print(texts)
+        #print(transcription)
         #transcription = texts
         #transcription = transcription[0].upper() + transcription[1:]
 
+        texts = remove_punctuation(texts)
         transcription = remove_punctuation(transcription)
         if len(transcription) == '':
             transcription = ' '
@@ -82,9 +85,14 @@ def infer_dataset(args):
         if args.default_whisper_timing:
             words, start_times, end_times, ws, scores = default_find_alignment(model, tokenizer, text_tokens, mels, max_frames)
         else:
+            kwargs = dict(
+                w_colnorm=args.w_colnorm,
+                w_rownorm=args.w_rownorm,
+                w_coverage=args.w_coverage
+            )
             w, logits = get_attentions(mels, tokens, model, tokenizer, max_frames, medfilt_width, qk_scale)
             words, start_times, end_times, ws, scores = force_align(w, text_tokens, tokenizer, 
-                    aligned_unit_type=args.aligned_unit_type, aggregation=args.aggr, topk=args.topk)
+                    aligned_unit_type=args.aligned_unit_type, aggregation=args.aggr, topk=args.topk, **kwargs)
         if args.plot:
             plot_attns(ws, scores, wrd_pos=ends, path=f'{args.output_dir}/imgs')
 
@@ -92,10 +100,18 @@ def infer_dataset(args):
         ends_hat = end_times
 
         # eval
-        total_gts += len(ends)
-        total_preds += len(ends_hat)
-        correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
-        corrects += correct_pred
+        if not args.strict:
+            correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
+            total_gts += len(ends)
+            total_preds += len(ends_hat)
+            corrects += correct_pred
+        else:
+            #tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words[:-1], tolerance)
+            words = ' '.join(words[:-1]).split()
+            tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words, tolerance)
+            corrects += tp
+            total_gts += (fp + fn)
+            total_preds += (tp + fp)
 
     precision, recall, f1, r_value, _ = \
              get_seg_metrics(corrects, corrects, total_preds, total_gts)
@@ -126,7 +142,11 @@ def parse_args():
     parser.add_argument('--topk', type=int, default=15)
     parser.add_argument('--aligned_unit_type', type=str, default='subword', choices=["subword", "char"])
     parser.add_argument('--tolerance', type=float, default=0.02)
+    parser.add_argument('--w_colnorm', type=float, default=1.0)
+    parser.add_argument('--w_rownorm', type=float, default=1.0)
+    parser.add_argument('--w_coverage', type=float, default=0.0)
     parser.add_argument('--plot', action='store_true')
+    parser.add_argument('--strict', action='store_true')
     parser.add_argument('--default_whisper_timing', action='store_true')
 
     return parser.parse_args()
