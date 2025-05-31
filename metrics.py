@@ -45,6 +45,33 @@ def eval_n1(y, yhat, tolerance=1):
 
     return n_match, n_match
 
+def eval_n1_strict(y, y_hat, words, words_hat, tolerance=1):
+    def is_match(y_i, yhat_j, w_i, what_j, tolerance):
+        return (
+            w_i == what_j and abs(y_i - yhat_j) <= tolerance
+        )
+
+    i, j = 0, 0
+    tp = 0
+    used_refs = set()
+
+    while i < len(y_hat):
+        matched = False
+        for j in range(len(y)):
+            if j in used_refs:
+                continue
+            if is_match(y[j], y_hat[i], words[j], words_hat[i], tolerance):
+                tp += 1
+                used_refs.add(j)
+                matched = True
+                break
+        i += 1
+
+    fp = len(y_hat) - tp
+    fn = len(y) - len(used_refs)
+
+    return tp, fp, fn
+
 def get_seg_metrics(correct_predict, correct_retrieve, total_predict, total_gold):
     EPS = 1e-7
     
