@@ -113,12 +113,15 @@ class LibriSpeech(torch.utils.data.Dataset):
         mel = whisper.log_mel_spectrogram(audio, self.n_mels)
         starts = []
         ends = []
+        text = []
         for i, item in enumerate(ali):
-            if item[0] == '' and i == len(ali) - 1:
+            if item[0] == '':
                 continue
             else:
                 starts.append(item[1])
                 ends.append(item[2])
+                text.append(item[0])
+        text = " ".join(text)
 
         return (audio, mel, duration, text, starts, ends, fid)
 

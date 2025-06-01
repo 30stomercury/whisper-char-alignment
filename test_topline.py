@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 import torch
 import argparse
-from metrics import eval_n1, get_seg_metrics, dtw_timestamp
+from metrics import eval_n1, eval_n1_strict, get_seg_metrics, dtw_timestamp
 from dataset import TIMIT, LibriSpeech, AMI, Collate
 from timing import get_attentions, force_align, filter_attention
 from retokenize import encode, remove_punctuation
@@ -55,6 +55,7 @@ def infer_dataset(args):
         print(texts)
         print(transcription)
         
+        texts = remove_punctuation(texts)
         transcription = remove_punctuation(transcription)
         if len(transcription) == '':
             transcription = ' '
@@ -77,40 +78,49 @@ def infer_dataset(args):
 
         w, logits = get_attentions(mels, tokens, model, tokenizer, max_frames, medfilt_width, qk_scale)
 
-        ws, scores = filter_attention(w, topk=150)
-        print(texts.split())
-        print(transcription.split())
+        ws, scores = filter_attention(w, topk=60)
         candidates = []
-        # best_score = -1
-        best_score = float('inf')
+        best_score = -1
+        # best_score = float('inf')
         best_ends_hat = None
         best_head = None
         for w, score in zip(ws, scores):
             results = force_align(w.unsqueeze(0), text_tokens, tokenizer,
                     aligned_unit_type=args.aligned_unit_type, aggregation="mean", topk=15)
-            cost, _ = dtw_timestamp(ends, results[2])
+            # cost, _ = dtw_timestamp(ends, results[2])
             # # collect predicted boundaries
-            # ends_hat = results[2]
+            ends_hat = results[2]
             # correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
+            words = ' '.join(results[0][:-1]).split()
+            tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words, tolerance)
+            correct_pred = tp
+            total_gt = (tp + fn)
+            total_pred = (tp + fp)
+            precision, recall, f1, r_value, os = \
+                    get_seg_metrics(correct_pred, correct_pred, total_pred, total_gt)
             # precision, recall, f1, r_value, os = \
             #         get_seg_metrics(correct_pred, correct_pred, len(ends_hat), len(ends))
-            # if f1 > best_score:
-            #     best_score = f1
-            #     best_ends_hat = results[2]
-            #     best_head = score + (f1, )
+            if f1 > best_score:
+                best_score = f1
+                best_ends_hat = results[2]
+                best_head = score + (f1, )
 
             # not used now but maybe useful for topk
             # candidates.append(ends_hat)
-            if cost < best_score:
-                best_score = cost
-                best_ends_hat = results[2]
-                best_head = score
+            # if cost < best_score:
+            #     best_score = cost
+            #     best_ends_hat = results[2]
+            #     best_head = score
         selected.append(str(best_head))
         # eval
-        total_gts += len(ends)
-        total_preds += len(best_ends_hat)
-        correct_pred, _ = eval_n1(ends, best_ends_hat, tolerance)
-        corrects += correct_pred
+        # total_gts += len(ends)
+        # total_preds += len(best_ends_hat)
+        # correct_pred, _ = eval_n1(ends, best_ends_hat, tolerance)
+        # corrects += correct_pred
+        tp, fp, fn = eval_n1_strict(ends, best_ends_hat, texts.split(), words, tolerance)
+        total_gts += (tp + fn)
+        total_preds += (tp + fp)
+        corrects += tp
 
         print(ends)
         print(best_ends_hat)

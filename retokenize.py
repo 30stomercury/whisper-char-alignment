@@ -25,11 +25,11 @@ def split_tokens_on_spaces(tokens, tokenizer, aligned_unit_type='subword'):
     words = []
     word_tokens = []
 
-    for subword, subword_tokens in zip(subwords, subword_tokens_list):
+    for subword, subword_tokens in zip(subwords, subword_tokens_list): 
         special = subword_tokens[0] >= tokenizer.eot
         with_space = subword == " "
         punctuation = subword.strip() in string.punctuation
-        if special or with_space or punctuation or len(words) == 0:
+        if special or with_space or len(words) == 0:
             words.append(subword)
             word_tokens.append(subword_tokens)
         else:
@@ -39,7 +39,7 @@ def split_tokens_on_spaces(tokens, tokenizer, aligned_unit_type='subword'):
     return words, word_tokens
 
 def remove_punctuation(text):
-    text = text.translate(str.maketrans('', '', string.punctuation))
+    text = text.translate(str.maketrans('', '', string.punctuation.replace("'", "")))
     normalized_text = []
     for wrd in text.split():
         if wrd.isdigit():
@@ -47,4 +47,4 @@ def remove_punctuation(text):
         normalized_text.append(wrd)
 
     text = ' '.join(normalized_text)
-    return text.translate(str.maketrans('', '', string.punctuation))
+    return text.translate(str.maketrans('', '', string.punctuation.replace("'", "")))

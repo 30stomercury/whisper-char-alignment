@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 import torch
 
-from metrics import eval_n1, eval_n1_strict, get_seg_metrics
+from metrics import eval_n1, get_seg_metrics, eval_n1_strict
 from dataset import TIMIT, LibriSpeech, AMI, Collate
 from timing import get_attentions, force_align, filter_attention, default_find_alignment
 from retokenize import encode, remove_punctuation
@@ -98,6 +98,8 @@ def infer_dataset(args):
 
         # predicted boundaries
         ends_hat = end_times
+        print(ends)
+        print(ends_hat)
 
         # eval
         if not args.strict:
@@ -110,7 +112,7 @@ def infer_dataset(args):
             words = ' '.join(words[:-1]).split()
             tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words, tolerance)
             corrects += tp
-            total_gts += (fp + fn)
+            total_gts += (tp + fn)
             total_preds += (tp + fp)
 
     precision, recall, f1, r_value, _ = \
