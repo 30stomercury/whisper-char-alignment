@@ -44,7 +44,7 @@ def remove_punctuation(text):
     for wrd in text.split():
         if wrd.isdigit():
             wrd = num2words(int(wrd))
-        normalized_text.append(wrd)
+        normalized_text.append(wrd.strip(string.punctuation))
 
     text = ' '.join(normalized_text)
     return text.translate(str.maketrans('', '', string.punctuation.replace("'", "")))
