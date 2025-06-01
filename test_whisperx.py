@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 import torch
 
-from metrics import eval_n1, get_seg_metrics
+from metrics import eval_n1, eval_n1_strict, get_seg_metrics
 from dataset import TIMIT, LibriSpeech, AMI, Collate
 from retokenize import encode, remove_punctuation
 
@@ -47,24 +47,36 @@ def infer_dataset(args):
 
         # 2. Align whisper output
         ends_hat = []
+        words = []
         if len(result["segments"]) > 0:
             result = whisperx.align(
                     result["segments"], model_a, metadata, audios, device, return_char_alignments=False)
             total_words = len(result["segments"][0]['words'])
-            ends_hat = [] 
             for i in range(total_words):
                 if 'end' in result["segments"][0]['words'][i]:
                     ends_hat.append(result["segments"][0]['words'][i]['end'])
+                    words.append(result["segments"][0]['words'][i]['word'])
 
+        texts = remove_punctuation(texts)
+        words = remove_punctuation(' '.join(words))
         # eval
-        total_gts += len(ends)
-        total_preds += len(ends_hat)
-        correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
-        corrects += correct_pred
+        if not args.strict:
+            correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
+            total_gts += len(ends)
+            total_preds += len(ends_hat)
+            corrects += correct_pred
+        else:
+            tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words.split(), tolerance)
+            corrects += tp
+            total_gts += (tp + fn)
+            total_preds += (tp + fp)
 
+    print("corrects:", corrects)
+    print("gt:", total_gts)
     precision, recall, f1, r_value, _ = \
              get_seg_metrics(corrects, corrects, total_preds, total_gts)
-    results = dict(precision=precision, recall=recall, f1=f1, r_value=r_value)
+    results = dict(precision=precision, recall=recall, 
+            f1=f1, r_value=r_value, corrects=corrects, total_gts=total_gts)
     print(precision, recall, f1, r_value)
 
     # dump results
@@ -87,6 +99,7 @@ def parse_args():
     parser.add_argument('--n_mels', type=int, default=80)
     parser.add_argument('--scp', type=str, default="scp/test.wav.scp")
     parser.add_argument('--tolerance', type=float, default=0.02)
+    parser.add_argument('--strict', action='store_true')
 
     return parser.parse_args()
 
