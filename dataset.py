@@ -5,6 +5,7 @@ import whisper
 from glob import glob
 from tqdm import tqdm
 import numpy as np
+import joblib
 from collections import defaultdict
 from datasets import load_dataset, Audio
 import xml.etree.ElementTree as ET
@@ -130,35 +131,39 @@ class LibriSpeech(torch.utils.data.Dataset):
 
 class AMI(torch.utils.data.Dataset):
     def __init__(self, data_dir="/home/s2196654/dataset/AMI/", n_mels=80, device='cpu:0'):
-        subset = 'ihm'
-        dataset = load_dataset('edinburghcstr/ami', subset, split='test')
+        if not os.path.exists(f"{data_dir}/ami_output.pkl"):
+            subset = 'ihm'
+            dataset = load_dataset('edinburghcstr/ami', subset, split='test')
 
-        spk_mapping = self.load_speaker_mapping(data_dir)
-        all_meetings = {}
-        for meeting_id in set(dataset['meeting_id']):
-            for k, v in spk_mapping[meeting_id].items():
-                all_meetings[f"{meeting_id}.{v}"] = self.load_meeting(data_dir, meeting_id, v)
+            spk_mapping = self.load_speaker_mapping(data_dir)
+            all_meetings = {}
+            for meeting_id in set(dataset['meeting_id']):
+                for k, v in spk_mapping[meeting_id].items():
+                    all_meetings[f"{meeting_id}.{v}"] = self.load_meeting(data_dir, meeting_id, v)
 
 
-        meeting_clips = defaultdict(list)
-        for datapoint in dataset:
-            meeting_id = datapoint['meeting_id']
-            spk_id = datapoint['speaker_id']
-            # spk in A-D
-            spk = spk_mapping[meeting_id][spk_id]
-            meeting_spk_id = f"{datapoint['meeting_id']}.{spk}"
-            if meeting_spk_id not in ['EN2002a.A']: #, 'EN2002a.B', 'EN2002a.C', 'EN2002a.D']:
-                continue
-            meeting_clips[meeting_spk_id].append(
-                (
-                    datapoint['begin_time'], 
-                    datapoint['end_time'], 
-                    datapoint['text'], 
-                    datapoint['audio']['path']
+            meeting_clips = defaultdict(list)
+            for datapoint in dataset:
+                meeting_id = datapoint['meeting_id']
+                spk_id = datapoint['speaker_id']
+                # spk in A-D
+                spk = spk_mapping[meeting_id][spk_id]
+                meeting_spk_id = f"{datapoint['meeting_id']}.{spk}"
+                #if meeting_spk_id not in ['EN2002a.A']: #, 'EN2002a.B', 'EN2002a.C', 'EN2002a.D']:
+                #    continue
+                meeting_clips[meeting_spk_id].append(
+                    (
+                        datapoint['begin_time'], 
+                        datapoint['end_time'], 
+                        datapoint['text'], 
+                        datapoint['audio']['path']
+                    )
                 )
-            )
 
-        output = self.get_clip_alignments(meeting_clips, all_meetings)
+            output = self.get_clip_alignments(meeting_clips, all_meetings)
+            joblib.dump(output, f"{data_dir}/ami_output.pkl")
+        else:
+            output = joblib.load(f"{data_dir}/ami_output.pkl")
         print("total clips:", sum([len([i[-1] for i in output[x]]) for x in output]))
 
         self.sample_rate = 16000
@@ -177,6 +182,7 @@ class AMI(torch.utils.data.Dataset):
                     starts.append(wrd_s-s)
                     ends.append(wrd_e-s)
                     text.append(wrd_gt)
+                text = ' '.join(text)
                 fid = meeting_spk_id + f'.{clip_id}'
                 clip_id += 1
                 self.dataset.append((path, self.sample_rate, text, starts, ends, fid))
