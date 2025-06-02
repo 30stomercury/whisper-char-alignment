@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 import torch
 
-from metrics import eval_n1, get_seg_metrics
+from metrics import eval_n1, get_seg_metrics, eval_n1_strict
 from dataset import TIMIT, LibriSpeech, AMI, Collate
 from retokenize import encode, remove_punctuation
 from plot import plot_attns
@@ -16,13 +16,6 @@ import whisper
 from whisper.audio import HOP_LENGTH, SAMPLE_RATE, TOKENS_PER_SECOND
 from faster_whisper import WhisperModel
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
-
-
-"""
-pip install git+https://github.com/nyrahealth/transformers.git@crisper_whisper
-huggingface-cli login
-"""
-
 
 def adjust_pauses_for_hf_pipeline_output(pipeline_output, split_threshold=0.12):
     """
@@ -114,11 +107,17 @@ def infer_dataset(args):
     total_gts = 0
     for n, (audios, mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
 
+        if n > 10:
+            break
         sample = audios.numpy()[:durations]
         hf_pipeline_output = pipe(sample)
+        if args.boundary_adjustment:
+            hf_pipeline_output = adjust_pauses_for_hf_pipeline_output(hf_pipeline_output)
         ends_hat = []
+        words = []
         for chunk in hf_pipeline_output['chunks']:
             ends_hat.append(chunk['timestamp'][1])
+            words.append(chunk['text'])
         print(ends)
         print(ends_hat)
 
@@ -127,12 +126,18 @@ def infer_dataset(args):
         if max_frames > MAX_FRAMES:
             print(fids)
             continue
-        
+
         # eval
-        total_gts += len(ends)
-        total_preds += len(ends_hat)
-        correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
-        corrects += correct_pred
+        if not args.strict:
+            correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
+            total_gts += len(ends)
+            total_preds += len(ends_hat)
+            corrects += correct_pred
+        else:
+            tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words, tolerance)
+            corrects += tp
+            total_gts += (tp + fn)
+            total_preds += (tp + fp)
 
     precision, recall, f1, r_value, _ = \
              get_seg_metrics(corrects, corrects, total_preds, total_gts)
@@ -159,6 +164,8 @@ def parse_args():
     parser.add_argument('--n_mels', type=int, default=80)
     parser.add_argument('--tolerance', type=float, default=0.02)
     parser.add_argument('--plot', action='store_true')
+    parser.add_argument('--strict', action='store_true')
+    parser.add_argument('--boundary_adjustment', action='store_true')
 
     return parser.parse_args()
 

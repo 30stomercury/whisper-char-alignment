@@ -275,8 +275,8 @@ class AMI(torch.utils.data.Dataset):
                     print("No alignments")
                     continue
 
-                if len(wrds.split()) == 1:
-                    continue
+                #if len(wrds.split()) == 1:
+                #    continue
                 for w in wrds.split():
                     wrd_s, wrd_e, wrd_gt = wrd_alignments[wrd_id]
                     wrd_gt = wrd_gt.upper()
@@ -289,4 +289,3 @@ class AMI(torch.utils.data.Dataset):
                     
                 output[meeting_spk_id].append((audio, s, e, wrds, clip_to_wrd_alignments))
         return output
-

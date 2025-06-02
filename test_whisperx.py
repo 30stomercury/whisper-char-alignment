@@ -39,6 +39,8 @@ def infer_dataset(args):
     total_preds = 0
     total_gts = 0
     for n, (audios, mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
+        if texts.split() < args.min_num_words:
+            continue
         
         audios = audios.cpu().detach().numpy()
         result = model.transcribe(audios, batch_size=batch_size)
@@ -100,6 +102,7 @@ def parse_args():
     parser.add_argument('--scp', type=str, default="scp/test.wav.scp")
     parser.add_argument('--tolerance', type=float, default=0.02)
     parser.add_argument('--strict', action='store_true')
+    parser.add_argument('--min_num_words', type=int, default=0)
 
     return parser.parse_args()
 
