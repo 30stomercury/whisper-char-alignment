@@ -6,6 +6,8 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 import torch
+from collections import defaultdict
+import joblib
 
 from metrics import eval_n1, get_seg_metrics, eval_n1_strict
 from dataset import TIMIT, LibriSpeech, AMI, Collate
@@ -50,6 +52,7 @@ def infer_dataset(args):
     corrects = 0
     total_preds = 0
     total_gts = 0
+    all_predictions = defaultdict(int)
     for n, (audios, mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
 
         # print the recognized text
@@ -83,7 +86,8 @@ def infer_dataset(args):
             continue
         
         if args.default_whisper_timing:
-            words, start_times, end_times, ws, scores = default_find_alignment(model, tokenizer, text_tokens, mels, max_frames)
+            words, start_times, end_times, ws, scores = default_find_alignment(
+                    model, tokenizer, text_tokens, mels, max_frames)
         else:
             kwargs = dict(
                 w_colnorm=args.w_colnorm,
@@ -100,6 +104,9 @@ def infer_dataset(args):
         ends_hat = end_times
         print(ends)
         print(ends_hat)
+        if args.save_prediction:
+            all_predictions[n] = dict(starts=starts, ends=ends, texts=texts.split(), 
+                starts_hat=start_times, ends_hat=ends_hat, predwords=words, fids=fids)
 
         # eval
         if not args.strict:
@@ -128,6 +135,8 @@ def infer_dataset(args):
         os.makedirs(args.output_dir)
     with open(f"{args.output_dir}/{filename}.json", 'w') as f:
         json.dump(results, f)
+    if args.save_prediction:
+        joblib.dump(all_predictions, f"{args.output_dir}/{filename}-predictions.pkl")
 
 
 def parse_args():
@@ -149,6 +158,7 @@ def parse_args():
     parser.add_argument('--w_coverage', type=float, default=0.0)
     parser.add_argument('--plot', action='store_true')
     parser.add_argument('--strict', action='store_true')
+    parser.add_argument('--save_prediction', action='store_true')
     parser.add_argument('--default_whisper_timing', action='store_true')
 
     return parser.parse_args()
