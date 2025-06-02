@@ -1,12 +1,17 @@
 import os
+import datetime
+import time
+import json
+import argparse
 import numpy as np
 from tqdm import tqdm
 import torch
-import argparse
-from metrics import eval_n1, eval_n1_strict, get_seg_metrics, dtw_timestamp
+
+from metrics import eval_n1, get_seg_metrics, eval_n1_strict
 from dataset import TIMIT, LibriSpeech, AMI, Collate
 from timing import get_attentions, force_align, filter_attention
 from retokenize import encode, remove_punctuation
+from plot import plot_attns
 
 import whisper
 from whisper.tokenizer import get_tokenizer
@@ -21,6 +26,7 @@ MAX_LENGTH = 448
 DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech, "AMI": AMI}
 
 def infer_dataset(args):
+    print(args)
     tolerance = args.tolerance
 
     # model
@@ -44,18 +50,20 @@ def infer_dataset(args):
     corrects = 0
     total_preds = 0
     total_gts = 0
-    selected = []
+    if_include_best = 0
     for n, (audios, mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
+        if len(texts.split()) < 18:
+            continue
+
         # print the recognized text
-        #result = whisper.decode(model, mels, options)
-        #transcription = result.text
         mels = mels.to(model.device)
         result = whisper.decode(model, mels, options)
         transcription = result.text
-        print(texts)
-        print(transcription)
-        
-        texts = remove_punctuation(texts)
+        #print(texts)
+        #print(transcription)
+        #transcription = texts
+        #transcription = transcription[0].upper() + transcription[1:]
+
         transcription = remove_punctuation(transcription)
         if len(transcription) == '':
             transcription = ' '
@@ -75,63 +83,67 @@ def infer_dataset(args):
         if max_frames > MAX_FRAMES or len(tokens) > MAX_LENGTH:
             print(fids)
             continue
-
+        
         w, logits = get_attentions(mels, tokens, model, tokenizer, max_frames, medfilt_width, qk_scale)
-
-        ws, scores = filter_attention(w, topk=60)
+        ws, scores = filter_attention(w, topk=360)
         candidates = []
         best_score = -1
-        # best_score = float('inf')
         best_ends_hat = None
         best_head = None
         for w, score in zip(ws, scores):
             results = force_align(w.unsqueeze(0), text_tokens, tokenizer,
-                    aligned_unit_type=args.aligned_unit_type, aggregation="mean", topk=15)
-            # cost, _ = dtw_timestamp(ends, results[2])
-            # # collect predicted boundaries
+                    aggregation="mean", topk=1, aligned_unit_type=args.aligned_unit_type)
+
+            # collect predicted boundaries
             ends_hat = results[2]
-            # correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
-            words = ' '.join(results[0][:-1]).split()
-            tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words, tolerance)
-            correct_pred = tp
-            total_gt = (tp + fn)
-            total_pred = (tp + fp)
-            precision, recall, f1, r_value, os = \
-                    get_seg_metrics(correct_pred, correct_pred, total_pred, total_gt)
-            # precision, recall, f1, r_value, os = \
-            #         get_seg_metrics(correct_pred, correct_pred, len(ends_hat), len(ends))
-            if f1 > best_score:
+            correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
+            precision, recall, f1, r_value, _ = \
+                    get_seg_metrics(correct_pred, correct_pred, len(ends_hat), len(ends))
+            #print("score: ", score, f1)
+            print(score[0], score[1], score[2], f1)
+
+            if f1 >= best_score:
                 best_score = f1
                 best_ends_hat = results[2]
-                best_head = score + (f1, )
+                best_head = score[0]
+                #print(best_score, best_head)
 
             # not used now but maybe useful for topk
-            # candidates.append(ends_hat)
-            # if cost < best_score:
-            #     best_score = cost
-            #     best_ends_hat = results[2]
-            #     best_head = score
-        selected.append(str(best_head))
+            candidates.append(ends_hat)
+
+        if best_head > scores[-args.if_include_within][0]:
+            if_include_best += 1
         # eval
-        # total_gts += len(ends)
-        # total_preds += len(best_ends_hat)
-        # correct_pred, _ = eval_n1(ends, best_ends_hat, tolerance)
-        # corrects += correct_pred
-        tp, fp, fn = eval_n1_strict(ends, best_ends_hat, texts.split(), words, tolerance)
-        total_gts += (tp + fn)
-        total_preds += (tp + fp)
-        corrects += tp
+        if not args.strict:
+            correct_pred, _ = eval_n1(ends, best_ends_hat, tolerance)
+            total_gts += len(ends)
+            total_preds += len(best_ends_hat)
+            corrects += correct_pred
+        else:
+            #tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words[:-1], tolerance)
+            words = results[0]
+            words = ' '.join(words[:-1]).split()
+            tp, fp, fn = eval_n1_strict(ends, best_ends_hat, texts.split(), words, tolerance)
+            corrects += tp
+            total_gts += (tp + fn)
+            total_preds += (tp + fp)
 
-        print(ends)
-        print(best_ends_hat)
-
-    precision, recall, f1, r_value, os = \
+    precision, recall, f1, r_value, _ = \
              get_seg_metrics(corrects, corrects, total_preds, total_gts)
+    results = dict(
+            precision=precision, 
+            recall=recall, f1=f1, r_value=r_value, 
+            include_best_rate=if_include_best/len(loader))
     print(precision, recall, f1, r_value)
 
-    with open(f"{args.output_dir}/{args.dataset}-{args.aligned_unit_type}-best.txt", 'w') as f:
-        f.write('\n'.join(selected))
-    f.close()
+    # dump results
+    ts = time.time()
+    filename = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d-%H:%M:%S')
+    results = {**vars(args), **results}
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+    with open(f"{args.output_dir}/{filename}.json", 'w') as f:
+        json.dump(results, f)
 
 
 def parse_args():
@@ -144,11 +156,13 @@ def parse_args():
                         help="Path to the output directory", required=True)
     parser.add_argument('--n_mels', type=int, default=80)
     parser.add_argument('--medfilt_width', type=int, default=7)
+    parser.add_argument('--if_include_within', type=int, default=10)
     parser.add_argument('--aggr', type=str, default="mean", choices=["mean", "topk"])
     parser.add_argument('--topk', type=int, default=15)
     parser.add_argument('--aligned_unit_type', type=str, default='subword', choices=["subword", "char"])
     parser.add_argument('--tolerance', type=float, default=0.02)
     parser.add_argument('--plot', action='store_true')
+    parser.add_argument('--strict', action='store_true')
 
     return parser.parse_args()
 
