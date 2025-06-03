@@ -200,6 +200,7 @@ class AMI(torch.utils.data.Dataset):
         audio = whisper.pad_or_trim(audio.flatten())
         mel = whisper.log_mel_spectrogram(audio, self.n_mels)
         mel = mel.to(self.device)
+        fid = audio_file.split('/')[-1].replace('.wav', '')
 
         return audio, mel, duration, text, starts, ends, fid
 

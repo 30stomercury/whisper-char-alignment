@@ -1,4 +1,5 @@
 import re 
+import joblib
 
 def parse_segment(phns, times, text):
     # all lists
@@ -39,7 +40,7 @@ for i, line in enumerate(ftext.readlines()):
     texts[line_[0]] = line_[1:]
 
 data = {}
-for i in range(1, 2):
+for i in range(1, 31):
     fali = open(f'/home/htang2/ami_ihm_eval_tri4a/ali.{i}.txt')
     for i, line in enumerate(fali.readlines()):
         if i % 3 == 0:
@@ -61,3 +62,4 @@ for k in data.keys():
 
 # Display the result
 print(results)
+joblib.dump(results, "ami_kaldi.pkl")
