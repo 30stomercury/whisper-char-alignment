@@ -131,7 +131,7 @@ class LibriSpeech(torch.utils.data.Dataset):
 
 class AMI(torch.utils.data.Dataset):
     def __init__(self, data_dir="/home/s2196654/dataset/AMI/", n_mels=80, device='cpu:0'):
-        if not os.path.exists(f"{data_dir}/ami_output.pkl"):
+        if not os.path.exists(f"{data_dir}/ami_output2.pkl"):
             subset = 'ihm'
             dataset = load_dataset('edinburghcstr/ami', subset, split='test')
 
@@ -161,9 +161,9 @@ class AMI(torch.utils.data.Dataset):
                 )
 
             output = self.get_clip_alignments(meeting_clips, all_meetings)
-            joblib.dump(output, f"{data_dir}/ami_output.pkl")
+            joblib.dump(output, f"{data_dir}/ami_output2.pkl")
         else:
-            output = joblib.load(f"{data_dir}/ami_output.pkl")
+            output = joblib.load(f"{data_dir}/ami_output2.pkl")
         print("total clips:", sum([len([i[-1] for i in output[x]]) for x in output]))
 
         self.sample_rate = 16000
@@ -271,20 +271,20 @@ class AMI(torch.utils.data.Dataset):
 
                 wrd_id_tmp = wrd_id
                 wrd_id = self.find_start_point(s, wrd_alignments, wrd_id)
-                if wrd_id == -1:
-                    wrd_id = wrd_id_tmp
-                    print("No alignments")
-                    continue
+                #if wrd_id == -1:
+                #    wrd_id = wrd_id_tmp
+                #    print("No alignments")
+                #    continue
 
                 #if len(wrds.split()) == 1:
                 #    continue
                 for w in wrds.split():
                     wrd_s, wrd_e, wrd_gt = wrd_alignments[wrd_id]
                     wrd_gt = wrd_gt.upper()
-                    if w != wrd_gt:
-                        print(w, wrd_gt)
-                        clip_to_wrd_alignments = []
-                        break
+                    #if w != wrd_gt:
+                    #    print(w, wrd_gt)
+                    #    clip_to_wrd_alignments = []
+                    #    break
                     wrd_id += 1
                     clip_to_wrd_alignments.append((wrd_s, wrd_e, wrd_gt))
                     
