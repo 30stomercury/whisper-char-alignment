@@ -6,8 +6,10 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 import torch
+import joblib
+from collections import defaultdict
 
-from metrics import eval_n1, get_seg_metrics
+from metrics import eval_n1, get_seg_metrics, eval_n1_strict
 from dataset import TIMIT, LibriSpeech, AMI, Collate
 from retokenize import encode, remove_punctuation
 from timing import get_attentions, force_align, filter_attention, default_find_alignment
@@ -114,18 +116,27 @@ def infer_dataset(args):
     corrects = 0
     total_preds = 0
     total_gts = 0
+    all_predictions = defaultdict(int)
+    # TODO an arg to pass predictions from crisper, Yen shall pass LS predictions from test_crisper.py
+    crisper_preds = joblib.load("rerun-results_crisper/2025-06-04-00:34:36-predictions.pkl")
     for n, (audios, mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
 
+        """
         sample = audios.numpy()[:durations]
         hf_pipeline_output = pipe(sample)
         text = []
         for chunk in hf_pipeline_output['chunks']:
             text.append(chunk['text'])
+        """
+        assert crisper_preds[n]['fids'] == fids
+        words = [remove_punctuation(word) for word in crisper_preds[n]['predwords']]
+        texts = remove_punctuation(texts.lower())
 
-        transcription = remove_punctuation(' '.join(text))
+        transcription = ' '.join(words)
         if len(transcription) == '':
             transcription = ' '
 
+        print(transcription)
         text_tokens = encode(transcription, tokenizer, args.aligned_unit_type)
         tokens = torch.tensor(
             [
@@ -146,14 +157,25 @@ def infer_dataset(args):
         words, start_times, end_times, ws, scores = force_align(w, text_tokens, tokenizer, 
                 aligned_unit_type=args.aligned_unit_type, aggregation=args.aggr, topk=args.topk)
         ends_hat = end_times
+        words = ' '.join(words[:-1]).split()
         print(ends)
         print(end_times)
+        if args.save_prediction:
+            all_predictions[n] = dict(starts=starts, ends=ends, texts=texts.lower().split(), 
+                starts_hat=start_times, ends_hat=end_times, predwords=words, fids=fids)
 
         # eval
-        total_gts += len(ends)
-        total_preds += len(ends_hat)
-        correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
-        corrects += correct_pred
+        if not args.strict:
+            correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
+            total_gts += len(ends)
+            total_preds += len(ends_hat)
+            corrects += correct_pred
+        else:
+            tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words, tolerance)
+            corrects += tp
+            total_gts += (tp + fn)
+            total_preds += (tp + fp)
+
 
     precision, recall, f1, r_value, _ = \
              get_seg_metrics(corrects, corrects, total_preds, total_gts)
@@ -168,6 +190,9 @@ def infer_dataset(args):
         os.makedirs(args.output_dir)
     with open(f"{args.output_dir}/{filename}.json", 'w') as f:
         json.dump(results, f)
+
+    if args.save_prediction:
+        joblib.dump(all_predictions, f"{args.output_dir}/{filename}-crisperv2-predictions.pkl")
 
 
 def parse_args():
@@ -185,6 +210,8 @@ def parse_args():
     parser.add_argument('--aligned_unit_type', type=str, default='subword', choices=["subword", "char"])
     parser.add_argument('--tolerance', type=float, default=0.02)
     parser.add_argument('--plot', action='store_true')
+    parser.add_argument('--strict', action='store_true')
+    parser.add_argument('--save_prediction', action='store_true')
 
     return parser.parse_args()
 
