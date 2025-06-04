@@ -6,6 +6,8 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 import torch
+from collections import defaultdict
+import joblib
 
 from metrics import eval_n1, get_seg_metrics, eval_n1_strict
 from dataset import TIMIT, LibriSpeech, AMI, Collate
@@ -105,21 +107,23 @@ def infer_dataset(args):
     corrects = 0
     total_preds = 0
     total_gts = 0
+    all_predictions = defaultdict(int)
     for n, (audios, mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
 
-        if n > 10:
-            break
         sample = audios.numpy()[:durations]
         hf_pipeline_output = pipe(sample)
         if args.boundary_adjustment:
             hf_pipeline_output = adjust_pauses_for_hf_pipeline_output(hf_pipeline_output)
+        starts_hat = []
         ends_hat = []
         words = []
         for chunk in hf_pipeline_output['chunks']:
+            starts_hat.append(chunk['timestamp'][0])
             ends_hat.append(chunk['timestamp'][1])
-            words.append(chunk['text'])
-        print(ends)
-        print(ends_hat)
+            words.append(chunk['text'].lower())
+        if args.save_prediction:
+            all_predictions[n] = dict(starts=starts, ends=ends, texts=texts.lower().split(), 
+                starts_hat=starts_hat, ends_hat=ends_hat, predwords=words, fids=fids)
 
         # Get attention maps
         max_frames = durations // AUDIO_SAMPLES_PER_TOKEN
@@ -153,6 +157,10 @@ def infer_dataset(args):
     with open(f"{args.output_dir}/{filename}.json", 'w') as f:
         json.dump(results, f)
 
+    if args.save_prediction:
+        joblib.dump(all_predictions, f"{args.output_dir}/{filename}-predictions.pkl")
+
+
 
 def parse_args():
 
@@ -166,6 +174,7 @@ def parse_args():
     parser.add_argument('--plot', action='store_true')
     parser.add_argument('--strict', action='store_true')
     parser.add_argument('--boundary_adjustment', action='store_true')
+    parser.add_argument('--save_prediction', action='store_true')
 
     return parser.parse_args()
 
