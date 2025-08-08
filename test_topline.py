@@ -96,7 +96,10 @@ def infer_dataset(args):
 
             # collect predicted boundaries
             ends_hat = results[2]
-            correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
+            #correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
+            words = results[0]
+            words = ' '.join(words[:-1]).split()
+            tp, fp, fn = eval_n1_strict(ends, best_ends_hat, texts.split(), words, tolerance)
             precision, recall, f1, r_value, _ = \
                     get_seg_metrics(correct_pred, correct_pred, len(ends_hat), len(ends))
             #print("score: ", score, f1)
