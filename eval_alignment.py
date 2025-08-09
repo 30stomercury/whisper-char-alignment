@@ -33,8 +33,7 @@ def eval_ali(args):
         fid = key.upper()
         kaldi_ali[fid] = {
             'starts': [l[1] for l in ami_kaldi[key]], 
-            'ends': [l[2] for l in ami_kaldi[key]], 
-            'words': [remove_punctuation(l[0])for l in ami_kaldi[key]]
+            'ends': [l[2] for l in ami_kaldi[key]],             'words': [remove_punctuation(l[0])for l in ami_kaldi[key]]
         }
 
     # testing
@@ -50,8 +49,7 @@ def eval_ali(args):
         kaldi_words = kaldi_ali[k]['words']
         pred_ends = pred_ali[k]['ends']
         pred_words = pred_ali[k]['words']
-        # if htk_words != kaldi_words:
-        #     print(k)
+
         print(f"htk: {htk_ends}")
         print(f"kaldi: {kaldi_ends}")
         print(f"pred: {pred_ends}")
