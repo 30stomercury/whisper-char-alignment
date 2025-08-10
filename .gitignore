@@ -1,3 +1,6 @@
 __pycache__/
 *.txt
 results/
+*.pkl
+predictions/
+*.sh
