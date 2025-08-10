@@ -72,9 +72,6 @@ class LibriSpeech(torch.utils.data.Dataset):
     It will drop the last few seconds of a very small portion of the utterances.
     """
     def __init__(self, scp_file="scp/dev-clean.wav.scp", n_mels=80, device='cpu:0'):
-        # root = '/disk/scratch/s2522924/LibriSpeech'
-        # split = 'dev-clean' # temp hard code
-        # file_list = sorted(glob(os.path.join(root, split, "**/*.flac"), recursive=True))
         scp = open(scp_file, 'r').readlines()
         split = scp[0].split(' ')[1].split('/')[-4]
         root = scp[0].split(' ')[1].split(split)[0]

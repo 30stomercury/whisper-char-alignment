@@ -14,7 +14,6 @@ def filter_attention(attns, topk=20, w_colnorm=1, w_rownorm=1, w_coverage=0):
     """
     attns : torch.tensor in (layers, heads, tokens, frames)
     """
-    # filter with coverage penalty
     n_layers = attns.size(0)
     n_heads = attns.size(1)
     score_matix = torch.zeros(n_layers, n_heads, device=attns.device)

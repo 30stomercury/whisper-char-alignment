@@ -49,8 +49,6 @@ def eval_n1(y, yhat, tolerance=1):
 def eval_n1_strict(y, y_hat, words, words_hat, tolerance=1):
     words = [w.lower().strip(string.punctuation) for w in words]
     words_hat = [w.lower().strip(string.punctuation) for w in words_hat]
-    print(words)
-    print(words_hat)
     def is_match(y_i, yhat_j, w_i, what_j, tolerance):
         return (
             w_i == what_j and abs(y_i - yhat_j) <= tolerance
