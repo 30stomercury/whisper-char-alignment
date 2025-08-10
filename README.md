@@ -1,4 +1,4 @@
-#### Whisperacter word aligner
+### Whisperacter word aligner
 
 Alignments:
 - [LibriSpeech alignments](https://zenodo.org/records/2619474#.YnB_1fPMK3I) (TextGrid)
