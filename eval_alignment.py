@@ -26,14 +26,14 @@ def eval_ali(args):
             'ends': preds[i]['ends'], 
             'words': [remove_punctuation(word) for word in preds[i]['texts']]
         }
-    print(len(list(htk_ali.keys())))
 
     kaldi_ali = {}
     for key in ami_kaldi.keys():
         fid = key.upper()
         kaldi_ali[fid] = {
             'starts': [l[1] for l in ami_kaldi[key]], 
-            'ends': [l[2] for l in ami_kaldi[key]],             'words': [remove_punctuation(l[0])for l in ami_kaldi[key]]
+            'ends': [l[2] for l in ami_kaldi[key]],             
+            'words': [remove_punctuation(l[0])for l in ami_kaldi[key]]
         }
 
     # testing
