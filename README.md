@@ -1,53 +1,8 @@
-What we have done:
-- We are able to select attention maps that look similar to forced alignments with coverage penalty!
-- It seems like some attention heads are modelling word-level forced alignments, some are not.
-- Extracting character-level attention maps is possible.
-
-Todos:
-- [X] Compared to mean-pooling over all attention maps (baseline), pool over the selected attention maps discovered with coverage penalty. Or we can simply use individual heads?
-- [X] Out of the selected attention maps, can we find the ones closest to word-level alignments?
-- [X] Are there specific heads, consistently modelling word-level alignmetns? -> check more samples.
-- [X] Apply coverage penalty to samples in librspeech dev-clean. Plot word-level alignments.
-- [X] Character-level ground truth alignments with MFA, CTC?
-- [X] Compute character-level inference WERs by simply blocking tokens other than characters.
-
-- [ ] Word topline
-- [ ] Default Whisper
-- [ ] w/ or w/o punctuations
-- [ ] Baselines (WhisperX, CrisperWhisper)
-- [ ] Different tolerances (20ms, 50ms, 100ms, 200ms)
-- [ ] Retokenize (rule-based?) 
-Advanced:
-- [ ] Compute $\sum_{\text{next char}} \arg \max_{x \in A(prefix)} p(\text{next char}| x)$, in which $A$ is the pretrained tokenizer. 
-
-
----
-Baselines:
-
-WhisperX, averaged-pooling, selected-pooling on
-- [ ] TIMIT word-level alignments
-- [ ] dev-clean word-level alignments
-
-Character-level alignments
-- [ ] Char-based whisper WERs
-
-
-Ref: 
-- https://www.isca-archive.org/interspeech_2024/rousso24_interspeech.pdf
 
 Alignments:
 - [LibriSpeech alignments](https://zenodo.org/records/2619474#.YnB_1fPMK3I) (TextGrid)
 - [processed LibriSpeech alignments](https://drive.google.com/drive/folders/10Qa8dedfFhVl-3NuxMQMUUOwo9Rwn33o?usp=sharing) (merge TextGrid to single txt file)
 
-
-Results:
-- https://docs.google.com/spreadsheets/d/1kl7ZgPFvuXrfS4rinyrScX6EFLR03-H0eWfIwQ_stOg/edit?usp=sharing
-- [related work](https://docs.google.com/document/d/1oEsVdRs08uYDPpW35wB31KWYkD3qxliAgZphPbCpISk/edit?usp=sharing)
-
-
-
-
-### AMI
 ```
 pip3 install datasets
 pip3 install librosa
