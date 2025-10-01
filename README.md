@@ -21,3 +21,13 @@ python test.py --dataset TIMIT \
               --tolerance 0.05 \
               --medfilt_width 3
 ```
+
+## Data
+The utterances to align needs to be processed into a scp file with the format of `<file_id> <path_to_file>` in each line:
+
+```
+dr7-mnjm0-sx410 /group/corporapublic/timit/original/test/dr7/mnjm0/sx410.wav
+dr7-mnjm0-sx140 /group/corporapublic/timit/original/test/dr7/mnjm0/sx140.wav
+dr7-mnjm0-sx230 /group/corporapublic/timit/original/test/dr7/mnjm0/sx230.wav
+...
+```
