@@ -1,8 +1,5 @@
-### Whisperacter word aligner
-
-Alignments:
-- [LibriSpeech alignments](https://zenodo.org/records/2619474#.YnB_1fPMK3I) (TextGrid)
-- [processed LibriSpeech alignments](https://drive.google.com/drive/folders/10Qa8dedfFhVl-3NuxMQMUUOwo9Rwn33o?usp=sharing) (merge TextGrid to single txt file)
+# Whisper Word Aligner
+Source code for the paper: [Whisper Has an Internal Word Aligner](https://arxiv.org/abs/2509.09987)
 
 ## Setup
 ```
