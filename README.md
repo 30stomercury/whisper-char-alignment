@@ -43,6 +43,12 @@ python3 probe_oracle.py --dataset TIMIT \
               --medfilt_width 3
 ```
 
+#### Evaluation on saved alignments
+If the alignments are saved specifying the `--save_prediction` argument when running `infer_ali.py` (should be a *.pkl file), we can rerun evaluation against the ground truth with different tolerances using the command:
+```
+python eval_ali.py --pred /path/to/pkl --tolerance 0.05
+```
+
 ## Data
 The utterances to align needs to be processed into a scp file with the format of `<file_id> <path_to_file>` in each line:
 
