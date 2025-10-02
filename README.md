@@ -98,7 +98,7 @@ tokens = torch.tensor(
             ]
         ).to(DEVICE)
 
-attn_w, logits = get_attentions(mels, tokens, model, tokenizer, max_frames)
+attn_w, logits = get_attentions(mel, tokens, model, tokenizer, max_frames)
 words, start_times, end_times, ws, scores = force_align(
     attn_w, text_tokens, 
     tokenizer, 
