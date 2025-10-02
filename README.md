@@ -4,8 +4,8 @@ Source code for the paper: [Whisper Has an Internal Word Aligner](https://arxiv.
 ## Setup
 ```
 pip3 install -U openai-whisper
-pip3 install datasets
 pip3 install librosa
+pip3 install num2words
 ```
 
 ## Usage
