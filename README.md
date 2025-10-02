@@ -139,3 +139,5 @@ plot_attn(
           path='imgs'
       )
 ```
+
+<img src="imgs/test.png" alt="example plot" style="width:60%; height:auto;">
