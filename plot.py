@@ -38,8 +38,9 @@ def plot_attn(
     ax.imshow(weights.detach().cpu().numpy(), aspect='auto')
     N = len(weights)
 
-    for e in gt_alignment:
-        ax.axvline(int(e / 0.02), linewidth=2, color='white')
+    if gt_alignment is not None:
+        for e in gt_alignment:
+            ax.axvline(int(e / 0.02), linewidth=2, color='white')
     for e in pred_alignment:
         ax.axvline(int(e / 0.02) , linewidth=3, color=color, ls='dotted')
 
