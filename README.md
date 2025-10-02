@@ -63,7 +63,7 @@ dr7-mnjm0-sx230 /group/corporapublic/timit/original/test/dr7/mnjm0/sx230.wav
 ```python
 import torch
 import torchaudio
-from timing import get_attentions, force_align, filter_attention, default_find_alignment
+from timing import get_attentions, force_align
 from retokenize import encode, remove_punctuation
 import whisper
 from whisper.tokenizer import get_tokenizer
