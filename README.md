@@ -125,4 +125,17 @@ for i, word in enumerate(words[:-1]):
 1.52 1.76 for
 1.76 2.06 real
 """
+
+# example visualization
+from plot import plot_attn
+plot_attn(
+          ws,
+          text_tokens,
+          tokenizer,
+          gt_alignment=None, # will plot the ground truth boundaries if provided
+          pred_alignment=end_times,
+          fid='test', 
+          aligned_unit_type='char',
+          path='imgs'
+      )
 ```
