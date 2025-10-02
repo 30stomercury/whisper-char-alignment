@@ -142,7 +142,7 @@ plot_attn(
 )
 ```
 ## Example visualization
-The alignments of an utterance *``Artificial interlligence is for real''*:
+The alignments of an utterance *``Artificial intelligence is for real''*:
 
 <img src="imgs/test.png" alt="example plot" style="width:50%; height:auto;">
 
