@@ -1,4 +1,6 @@
 # Whisper Word Aligner
+
+
 Source code for the paper: [Whisper Has an Internal Word Aligner](https://arxiv.org/abs/2509.09987)
 
 ## Setup
@@ -129,15 +131,27 @@ for i, word in enumerate(words[:-1]):
 # example visualization
 from plot import plot_attn
 plot_attn(
-          ws,
-          text_tokens,
-          tokenizer,
-          gt_alignment=None, # will plot the ground truth boundaries if provided
-          pred_alignment=end_times,
-          fid='test', 
-          aligned_unit_type='char',
-          path='imgs'
-      )
+  ws,
+  text_tokens,
+  tokenizer,
+  gt_alignment=None, # will plot the ground truth boundaries if provided
+  pred_alignment=end_times,
+  fid='test', 
+  aligned_unit_type='char',
+  path='imgs'
+)
 ```
+## Example visualization
+The alignments of an utterance *``Artificial interlligence is for real''*:
 
-<img src="imgs/test.png" alt="example plot" style="width:60%; height:auto;">
+<img src="imgs/test.png" alt="example plot" style="width:50%; height:auto;">
+
+## Citation
+```
+@inproceedings{yeh2025whisper,
+  title={Whisper Has an Internal Word Aligner},
+  author={Yeh, Sung-Lin and Meng, Yen and Tang, Hao},
+  booktitle={ASRU 2025},
+  year={2025}
+}
+```
