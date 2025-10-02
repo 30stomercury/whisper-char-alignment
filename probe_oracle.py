@@ -105,7 +105,7 @@ def infer_dataset(args):
             # not used now but maybe useful for topk
             candidates.append(ends_hat)
 
-        if best_head > scores[-args.if_include_within][0]:
+        if best_head > scores[-args.hit_within][0]:
             if_include_best += 1
         # eval
         if not args.strict:
@@ -126,7 +126,7 @@ def infer_dataset(args):
     results = dict(
             precision=precision, 
             recall=recall, f1=f1, r_value=r_value, 
-            include_best_rate=if_include_best/len(loader))
+            hit_rate=if_include_best/len(loader))
 
     # dump results
     ts = time.time()
@@ -148,7 +148,8 @@ def parse_args():
                         help="Path to the output directory", required=True)
     parser.add_argument('--n_mels', type=int, default=80)
     parser.add_argument('--medfilt_width', type=int, default=7)
-    parser.add_argument('--if_include_within', type=int, default=10)
+    parser.add_argument('--hit_within', type=int, default=10,
+                        help="compute how often the oracle head is included in the selected heads using the proposed approach.") 
     parser.add_argument('--aggr', type=str, default="mean", choices=["mean", "topk"])
     parser.add_argument('--topk', type=int, default=15)
     parser.add_argument('--aligned_unit_type', type=str, default='subword', choices=["subword", "char"])
