@@ -12,9 +12,9 @@ pip3 install librosa
 
 #### Infer alignments
 Example command for aligning with characters on TIMIT. 
-\\
+
 It consists of few steps --- (1) tokenizing texts into *characters*, (2) teacher-forcing Whisper-*medium* with the character sequence, 
-(3) selecting *top 10* attention maps to extract the alignments,
+(3) selecting *top 10* attention maps to extract the final alignments,
 (4) evaluating word alignments within a tolerance of *0.05*s (50ms).
 
 ```
