@@ -117,4 +117,12 @@ words, start_times, end_times, ws, scores = force_align(
 # print word alignment result
 for i, word in enumerate(words[:-1]):
   print(f"{start_times[i]:.2f} {end_times[i]:.2f} {word.strip()}")
+
+""" the output should be:
+0.00 0.70 Artificial
+0.70 1.38 intelligence
+1.38 1.52 is
+1.52 1.76 for
+1.76 2.06 real
+"""
 ```
