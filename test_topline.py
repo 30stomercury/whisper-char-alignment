@@ -55,14 +55,9 @@ def infer_dataset(args):
         if len(texts.split()) < 18:
             continue
 
-        # print the recognized text
         mels = mels.to(model.device)
         result = whisper.decode(model, mels, options)
         transcription = result.text
-        #print(texts)
-        #print(transcription)
-        #transcription = texts
-        #transcription = transcription[0].upper() + transcription[1:]
 
         transcription = remove_punctuation(transcription)
         if len(transcription) == '':
@@ -96,20 +91,16 @@ def infer_dataset(args):
 
             # collect predicted boundaries
             ends_hat = results[2]
-            #correct_pred, _ = eval_n1(ends, ends_hat, tolerance)
             words = results[0]
             words = ' '.join(words[:-1]).split()
             tp, fp, fn = eval_n1_strict(ends, best_ends_hat, texts.split(), words, tolerance)
             precision, recall, f1, r_value, _ = \
                     get_seg_metrics(correct_pred, correct_pred, len(ends_hat), len(ends))
-            #print("score: ", score, f1)
-            print(score[0], score[1], score[2], f1)
 
             if f1 >= best_score:
                 best_score = f1
                 best_ends_hat = results[2]
                 best_head = score[0]
-                #print(best_score, best_head)
 
             # not used now but maybe useful for topk
             candidates.append(ends_hat)
@@ -123,7 +114,6 @@ def infer_dataset(args):
             total_preds += len(best_ends_hat)
             corrects += correct_pred
         else:
-            #tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words[:-1], tolerance)
             words = results[0]
             words = ' '.join(words[:-1]).split()
             tp, fp, fn = eval_n1_strict(ends, best_ends_hat, texts.split(), words, tolerance)

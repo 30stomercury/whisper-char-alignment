@@ -46,23 +46,18 @@ def infer_dataset(args):
 
     loader = torch.utils.data.DataLoader(dataset, collate_fn=Collate(), batch_size=1)
 
-    # decode the audio
     options = whisper.DecodingOptions(language="en")
 
+    # decode the audio
     corrects = 0
     total_preds = 0
     total_gts = 0
     all_predictions = defaultdict(int)
     for n, (audios, mels, durations, texts, starts, ends, fids) in enumerate(tqdm(loader)):
 
-        # print the recognized text
         mels = mels.to(model.device)
         result = whisper.decode(model, mels, options)
         transcription = result.text
-        #print(texts)
-        #print(transcription)
-        #transcription = texts
-        #transcription = transcription[0].upper() + transcription[1:]
 
         texts = remove_punctuation(texts)
         transcription = remove_punctuation(transcription)
@@ -79,7 +74,6 @@ def infer_dataset(args):
             ]
         ).to(model.device)
 
-        # Get attention maps
         max_frames = durations // AUDIO_SAMPLES_PER_TOKEN
         if max_frames > MAX_FRAMES or len(tokens) > MAX_LENGTH:
             print(fids)
@@ -94,16 +88,21 @@ def infer_dataset(args):
                 w_rownorm=args.w_rownorm,
                 w_coverage=args.w_coverage
             )
-            w, logits = get_attentions(mels, tokens, model, tokenizer, max_frames, medfilt_width, qk_scale)
-            words, start_times, end_times, ws, scores = force_align(w, text_tokens, tokenizer, 
-                    aligned_unit_type=args.aligned_unit_type, aggregation=args.aggr, topk=args.topk, **kwargs)
+            # Get attention maps
+            attn_w, logits = get_attentions(mels, tokens, model, tokenizer, max_frames, medfilt_width, qk_scale)
+            words, start_times, end_times, ws, scores = force_align(
+                attn_w, text_tokens, 
+                tokenizer, 
+                aligned_unit_type=args.aligned_unit_type, 
+                aggregation=args.aggr, 
+                topk=args.topk, 
+                **kwargs
+            )
         if args.plot:
             plot_attns(ws, scores, wrd_pos=ends, path=f'{args.output_dir}/imgs')
 
         # predicted boundaries
         ends_hat = end_times
-        print(ends)
-        print(ends_hat)
         if args.save_prediction:
             all_predictions[n] = dict(starts=starts, ends=ends, texts=texts.split(), 
                 starts_hat=start_times, ends_hat=ends_hat, predwords=words, fids=fids)
@@ -115,7 +114,6 @@ def infer_dataset(args):
             total_preds += len(ends_hat)
             corrects += correct_pred
         else:
-            #tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words[:-1], tolerance)
             words = ' '.join(words[:-1]).split()
             tp, fp, fn = eval_n1_strict(ends, ends_hat, texts.split(), words, tolerance)
             corrects += tp
