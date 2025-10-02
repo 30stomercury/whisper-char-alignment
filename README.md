@@ -151,7 +151,7 @@ The alignments of an utterance *``Artificial intelligence is for real''*:
 @inproceedings{yeh2025whisper,
   title={Whisper Has an Internal Word Aligner},
   author={Yeh, Sung-Lin and Meng, Yen and Tang, Hao},
-  booktitle={ASRU 2025},
+  booktitle={ASRU},
   year={2025}
 }
 ```
