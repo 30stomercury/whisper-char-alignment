@@ -77,8 +77,7 @@ def force_align(
         w_coverage=0.0
     ):
     """
-    w : torch.tensor in (layers, heads, tokens, frames)
-    tokens : tokens of texts, without bot, eot
+    ws : torch.tensor in (layers, heads, tokens, frames), representing attention weights
     """
 
     scores = None
@@ -105,11 +104,6 @@ def force_align(
 
     words, word_tokens = split_tokens_on_spaces(tokens + [tokenizer.eot], tokenizer, aligned_unit_type)
     if len(word_tokens) <= 1:
-        # return on eot only
-        # >>> np.pad([], (1, 0))
-        # array([0.])
-        # This results in crashes when we lookup jump_times with float, like
-        # IndexError: arrays used as indices must be of integer (or boolean) type
         return [[], [], [], [], None]
     word_boundaries = np.pad(np.cumsum([len(t) for t in word_tokens[:-1]]), (1, 0))
 
