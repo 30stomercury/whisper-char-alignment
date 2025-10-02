@@ -123,7 +123,6 @@ def infer_dataset(args):
     precision, recall, f1, r_value, _ = \
              get_seg_metrics(corrects, corrects, total_preds, total_gts)
     results = dict(precision=precision, recall=recall, f1=f1, r_value=r_value)
-    print(precision, recall, f1, r_value)
 
     # dump results
     ts = time.time()

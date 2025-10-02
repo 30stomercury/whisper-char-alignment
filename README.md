@@ -11,7 +11,7 @@ pip3 install librosa
 ## Usage
 Example command for aligning with characters on TIMIT
 ```
-python test.py --dataset TIMIT \
+python infer_ali.py --dataset TIMIT \
               --scp /path/to/scp \
               --aggr topk \
               --topk 10 \
