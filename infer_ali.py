@@ -140,7 +140,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description="Arguments for whisper-based forced alignments")
     parser.add_argument('--model', type=str, default='medium')
-    parser.add_argument('--dataset', type=str, default="TIMIT", choices=["TIMIT", "LibriSpeech", "AMI"])
+    parser.add_argument('--dataset', type=str, default="TIMIT", choices=["TIMIT", "LibriSpeech"])
     parser.add_argument('--scp', type=str, default="scp/test.wav.scp")
     parser.add_argument('--output_dir', type=str, default='results',
                         help="Path to the output directory", required=True)

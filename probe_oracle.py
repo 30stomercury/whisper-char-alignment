@@ -8,7 +8,7 @@ from tqdm import tqdm
 import torch
 
 from metrics import eval_n1, get_seg_metrics, eval_n1_strict
-from dataset import TIMIT, LibriSpeech, AMI, Collate
+from dataset import TIMIT, LibriSpeech, Collate
 from timing import get_attentions, force_align, filter_attention
 from retokenize import encode, remove_punctuation
 from plot import plot_attns
@@ -23,7 +23,7 @@ print(DEVICE)
 MAX_FRAMES = 1500
 MAX_LENGTH = 448
 
-DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech, "AMI": AMI}
+DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech}
 
 def infer_dataset(args):
     print(args)
@@ -127,7 +127,6 @@ def infer_dataset(args):
             precision=precision, 
             recall=recall, f1=f1, r_value=r_value, 
             include_best_rate=if_include_best/len(loader))
-    print(precision, recall, f1, r_value)
 
     # dump results
     ts = time.time()
@@ -143,7 +142,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description="Arguments for whisper-based forced alignments")
     parser.add_argument('--model', type=str, default='medium')
-    parser.add_argument('--dataset', type=str, default="TIMIT", choices=["TIMIT", "LibriSpeech", "AMI"])
+    parser.add_argument('--dataset', type=str, default="TIMIT", choices=["TIMIT", "LibriSpeech"])
     parser.add_argument('--scp', type=str, default="scp/test.wav.scp")
     parser.add_argument('--output_dir', type=str, default='results',
                         help="Path to the output directory", required=True)
