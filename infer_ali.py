@@ -10,7 +10,7 @@ from collections import defaultdict
 import joblib
 
 from metrics import eval_n1, get_seg_metrics, eval_n1_strict
-from dataset import TIMIT, LibriSpeech, AMI, Collate
+from dataset import TIMIT, LibriSpeech, Collate
 from timing import get_attentions, force_align, filter_attention, default_find_alignment
 from retokenize import encode, remove_punctuation
 from plot import plot_attns
@@ -25,7 +25,8 @@ print(DEVICE)
 MAX_FRAMES = 1500
 MAX_LENGTH = 448
 
-DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech, "AMI": AMI}
+# We remove AMI in the main branch and keep that part in the dev branch.
+DATASET = {"TIMIT": TIMIT, "LibriSpeech": LibriSpeech}
 
 def infer_dataset(args):
     print(args)
