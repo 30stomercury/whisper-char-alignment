@@ -111,7 +111,7 @@ def force_align(
     jump_times = time_indices[jumps] / TOKENS_PER_SECOND
     start_times = jump_times[word_boundaries[:-1]]
     end_times = jump_times[word_boundaries[1:]]
-    return words, start_times, end_times, ws, scores
+    return words, start_times, end_times, matrix, scores
 
 def default_find_alignment(
     model: "Whisper",

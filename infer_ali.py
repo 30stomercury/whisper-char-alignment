@@ -13,7 +13,7 @@ from metrics import eval_n1, get_seg_metrics, eval_n1_strict
 from dataset import TIMIT, LibriSpeech, Collate
 from timing import get_attentions, force_align, filter_attention, default_find_alignment
 from retokenize import encode, remove_punctuation
-from plot import plot_attns
+from plot import plot_attn
 
 import whisper
 from whisper.tokenizer import get_tokenizer
@@ -100,7 +100,17 @@ def infer_dataset(args):
                 **kwargs
             )
         if args.plot:
-            plot_attns(ws, scores, wrd_pos=ends, path=f'{args.output_dir}/imgs')
+            plot_attn(
+                ws,
+                text_tokens,
+                tokenizer,
+                gt_alignment=ends,
+                pred_alignment=end_times,
+                fid=fids, 
+                aligned_unit_type=args.aligned_unit_type,
+                path=f'{args.output_dir}/imgs/{args.dataset}'
+            )
+
 
         # predicted boundaries
         ends_hat = end_times
@@ -124,6 +134,7 @@ def infer_dataset(args):
     precision, recall, f1, r_value, _ = \
              get_seg_metrics(corrects, corrects, total_preds, total_gts)
     results = dict(precision=precision, recall=recall, f1=f1, r_value=r_value)
+    print(results)
 
     # dump results
     ts = time.time()
