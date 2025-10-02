@@ -59,6 +59,7 @@ import torch
 import torchaudio
 from timing import get_attentions, force_align, filter_attention, default_find_alignment
 from retokenize import encode, remove_punctuation
+import whisper
 from whisper.tokenizer import get_tokenizer
 
 AUDIO_SAMPLES_PER_TOKEN = whisper.audio.HOP_LENGTH * 2
@@ -72,7 +73,6 @@ sample_audio = "sample/test.wav"
 # load model
 model = whisper.load_model("medium")
 model.to(DEVICE)
-
 options = whisper.DecodingOptions(language="en")
 tokenizer = get_tokenizer(model.is_multilingual, language='English')
 
@@ -85,7 +85,7 @@ mel = whisper.log_mel_spectrogram(audio, 80)
 mel = mel.to(DEVICE)
 
 # run align
-result = whisper.decode(model, mels, options)
+result = whisper.decode(model, mel, options)
 transcription = result.text
 transcription = remove_punctuation(transcription)
 text_tokens = encode(transcription, tokenizer, aligned_unit_type='char') # choose between 'char' or 'subword'
@@ -98,15 +98,14 @@ tokens = torch.tensor(
             ]
         ).to(DEVICE)
 
-attn_w, logits = get_attentions(mel, tokens, model, tokenizer, max_frames)
+max_frames = duration // AUDIO_SAMPLES_PER_TOKEN
+attn_w, logits = get_attentions(mel, tokens, model, tokenizer, max_frames, medfilt_width=3, qk_scale=1.0)
 words, start_times, end_times, ws, scores = force_align(
     attn_w, text_tokens, 
     tokenizer, 
     aligned_unit_type='char', # choose between 'char' or 'subword'
     aggregation='topk', # choose between 'mean' or 'topk'
-    topk=10,
-    medfilt_width=3,
-    qk_scale=1.0
+    topk=10
 )
 
 # print word alignment result
