@@ -61,6 +61,17 @@ dr7-mnjm0-sx230 /group/corporapublic/timit/original/test/dr7/mnjm0/sx230.wav
 ...
 ```
 
+Word alignments of Librispeech and AMI using Kaldi can be found in this [link](https://drive.google.com/drive/folders/10Qa8dedfFhVl-3NuxMQMUUOwo9Rwn33o). We detail them in III.A of the paper. The word alignments of AMI are represented in `ami_kaldi.pkl`, in the following format: 
+```
+{
+  ...
+  "AMI_TS3003d_H03_MTD012ME_0255148_0255515": [("w1", s1, e1), ("w2", s2, e2), ...]
+  ...
+}
+```
+
+
+
 ## Sample code snippet for running inference on a single utterance
 ```python
 import torch
@@ -144,7 +155,7 @@ plot_attn(
 ## Example visualization
 The alignments of an utterance *``Artificial intelligence is for real''*:
 
-<img src="imgs/test.png" alt="example plot" style="width:50%; height:auto;">
+<img src="imgs/test.png" alt="example plot" style="width:60%; height:auto;">
 
 ## Citation
 ```
